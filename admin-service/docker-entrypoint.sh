@@ -41,13 +41,13 @@ else
     echo "npm dependencies already installed"
 fi
 
-# Build assets if manifest doesn't exist
-if [ ! -f /var/www/html/public/build/manifest.json ]; then
+# Build assets if manifest doesn't exist or if in development mode
+if [ ! -f /var/www/html/public/build/manifest.json ] || [ "${APP_ENV:-production}" = "local" ]; then
     echo "Building assets..."
     npm run build
     chown -R www-data:www-data /var/www/html/public/build 2>/dev/null || true
 else
-    echo "Assets already built"
+    echo "Assets already built (skipping in production)"
 fi
 
 # Create .env file if it doesn't exist
@@ -119,7 +119,11 @@ echo "Database is ready!"
 
 # Run migrations
 echo "Running migrations..."
-php artisan migrate
+php artisan migrate --force
+
+# Seed database if no admin users exist
+echo "Seeding database..."
+php artisan db:seed --force
 
 # Switch to www-data user for running the application
 exec su-exec www-data "$@"

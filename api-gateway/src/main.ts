@@ -43,7 +43,7 @@ bootstrap().catch((error: never) => {
 
 const createSwagger = (app: INestApplication) => {
   const swaggerConfig = new DocumentBuilder()
-    .setTitle("GlobalCell Backend API")
+    .setTitle("Ecommerce-Platform Backend API")
     .setVersion("1.0.5")
     .addBearerAuth()
     .build();

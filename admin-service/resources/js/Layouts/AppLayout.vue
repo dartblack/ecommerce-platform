@@ -48,8 +48,26 @@ const logout = () => {
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
+                                <NavLink :href="route('admin.dashboard')" :active="route().current('admin.dashboard')">
                                     Dashboard
+                                </NavLink>
+                                <NavLink :href="route('admin.users.index')" :active="route().current('admin.users.*')">
+                                    Users
+                                </NavLink>
+                                <NavLink :href="route('admin.categories.index')" :active="route().current('admin.categories.*')">
+                                    Categories
+                                </NavLink>
+                                <NavLink :href="route('admin.products.index')" :active="route().current('admin.products.*')">
+                                    Products
+                                </NavLink>
+                                <NavLink :href="route('admin.inventory.index')" :active="route().current('admin.inventory.*')">
+                                    Inventory
+                                </NavLink>
+                                <NavLink :href="route('admin.orders.index')" :active="route().current('admin.orders.*')">
+                                    Orders
+                                </NavLink>
+                                <NavLink :href="route('admin.sales-reports.index')" :active="route().current('admin.sales-reports.*')">
+                                    Sales Reports
                                 </NavLink>
                             </div>
                         </div>
@@ -191,8 +209,26 @@ const logout = () => {
                 <!-- Responsive Navigation Menu -->
                 <div :class="{'block': showingNavigationDropdown, 'hidden': ! showingNavigationDropdown}" class="sm:hidden">
                     <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
+                        <ResponsiveNavLink :href="route('admin.dashboard')" :active="route().current('admin.dashboard')">
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.users.index')" :active="route().current('admin.users.*')">
+                            Users
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.categories.index')" :active="route().current('admin.categories.*')">
+                            Categories
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.products.index')" :active="route().current('admin.products.*')">
+                            Products
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.inventory.index')" :active="route().current('admin.inventory.*')">
+                            Inventory
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.orders.index')" :active="route().current('admin.orders.*')">
+                            Orders
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.sales-reports.index')" :active="route().current('admin.sales-reports.*')">
+                            Sales Reports
                         </ResponsiveNavLink>
                     </div>
 

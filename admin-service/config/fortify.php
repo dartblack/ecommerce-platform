@@ -144,7 +144,7 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Features::registration(), // Registration disabled - admin-only panel
         Features::resetPasswords(),
         // Features::emailVerification(),
         Features::updateProfileInformation(),
