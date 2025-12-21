@@ -42,11 +42,11 @@ class OrderItem extends Model
     /**
      * Boot the model.
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 
-        static::creating(function ($orderItem) {
+        static::creating(static function ($orderItem) {
             // If product_id is provided, snapshot product details
             if ($orderItem->product_id && !$orderItem->product_name) {
                 $product = Product::find($orderItem->product_id);
@@ -65,7 +65,7 @@ class OrderItem extends Model
             }
         });
 
-        static::updating(function ($orderItem) {
+        static::updating(static function ($orderItem) {
             // Recalculate subtotal if quantity or price changed
             if ($orderItem->isDirty(['quantity', 'price'])) {
                 $orderItem->subtotal = $orderItem->quantity * $orderItem->price;

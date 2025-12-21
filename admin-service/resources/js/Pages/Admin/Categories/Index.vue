@@ -33,6 +33,36 @@ const categoryToDelete = ref(null);
 const categoryToRestore = ref(null);
 const categoryToForceDelete = ref(null);
 
+// Bulk operations
+const selectedCategories = ref([]);
+const showBulkDeleteModal = ref(false);
+const showBulkRestoreModal = ref(false);
+const showBulkUpdateModal = ref(false);
+const bulkDeleteForm = useForm({ ids: [] });
+const bulkRestoreForm = useForm({ ids: [] });
+const bulkUpdateForm = useForm({
+    ids: [],
+    is_active: null,
+});
+
+const selectAll = computed({
+    get: () => {
+        const activeCategories = props.categories.data.filter(c => !isDeleted(c));
+        return activeCategories.length > 0 && activeCategories.every(c => selectedCategories.value.includes(c.id));
+    },
+    set: (value) => {
+        if (value) {
+            const activeCategories = props.categories.data.filter(c => !isDeleted(c));
+            selectedCategories.value = [...new Set([...selectedCategories.value, ...activeCategories.map(c => c.id)])];
+        } else {
+            const activeCategoryIds = props.categories.data.filter(c => !isDeleted(c)).map(c => c.id);
+            selectedCategories.value = selectedCategories.value.filter(id => !activeCategoryIds.includes(id));
+        }
+    },
+});
+
+const hasSelectedCategories = computed(() => selectedCategories.value.length > 0);
+
 const search = () => {
     searchForm.get(route('admin.categories.index'), {
         preserveState: true,
@@ -130,6 +160,80 @@ const forceDeleteCategory = () => {
 const isDeleted = (category) => {
     return category.deleted_at !== null && category.deleted_at !== undefined;
 };
+
+// Bulk operations handlers
+const toggleCategorySelection = (categoryId) => {
+    const index = selectedCategories.value.indexOf(categoryId);
+    if (index > -1) {
+        selectedCategories.value.splice(index, 1);
+    } else {
+        selectedCategories.value.push(categoryId);
+    }
+};
+
+const isCategorySelected = (categoryId) => {
+    return selectedCategories.value.includes(categoryId);
+};
+
+const confirmBulkDelete = () => {
+    if (selectedCategories.value.length === 0) return;
+    bulkDeleteForm.ids = selectedCategories.value;
+    showBulkDeleteModal.value = true;
+};
+
+const performBulkDelete = () => {
+    bulkDeleteForm.post(route('admin.categories.bulk-delete'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showBulkDeleteModal.value = false;
+            selectedCategories.value = [];
+            bulkDeleteForm.reset();
+        },
+    });
+};
+
+const confirmBulkRestore = () => {
+    if (selectedCategories.value.length === 0) return;
+    bulkRestoreForm.ids = selectedCategories.value;
+    showBulkRestoreModal.value = true;
+};
+
+const performBulkRestore = () => {
+    bulkRestoreForm.post(route('admin.categories.bulk-restore'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showBulkRestoreModal.value = false;
+            selectedCategories.value = [];
+            bulkRestoreForm.reset();
+        },
+    });
+};
+
+const openBulkUpdateModal = () => {
+    if (selectedCategories.value.length === 0) return;
+    bulkUpdateForm.ids = selectedCategories.value;
+    bulkUpdateForm.is_active = null;
+    showBulkUpdateModal.value = true;
+};
+
+const performBulkUpdate = () => {
+    const data = {
+        ids: bulkUpdateForm.ids,
+    };
+    
+    if (bulkUpdateForm.is_active !== null) {
+        data.is_active = bulkUpdateForm.is_active === 'true' || bulkUpdateForm.is_active === true;
+    }
+
+    bulkUpdateForm.transform(() => data).post(route('admin.categories.bulk-update'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showBulkUpdateModal.value = false;
+            selectedCategories.value = [];
+            bulkUpdateForm.reset();
+        },
+    });
+};
 </script>
 
 <template>
@@ -216,11 +320,44 @@ const isDeleted = (category) => {
                         </form>
                     </div>
 
+                    <!-- Bulk Actions Bar -->
+                    <div v-if="hasSelectedCategories" class="px-6 py-3 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between">
+                        <div class="text-sm text-indigo-900">
+                            <strong>{{ selectedCategories.length }}</strong> category(ies) selected
+                        </div>
+                        <div class="flex gap-2">
+                            <template v-if="searchForm.trashed !== 'only'">
+                                <SecondaryButton @click="openBulkUpdateModal" size="sm">
+                                    Update
+                                </SecondaryButton>
+                                <DangerButton @click="confirmBulkDelete" size="sm">
+                                    Delete
+                                </DangerButton>
+                            </template>
+                            <template v-else>
+                                <PrimaryButton @click="confirmBulkRestore" size="sm">
+                                    Restore
+                                </PrimaryButton>
+                            </template>
+                            <SecondaryButton @click="selectedCategories = []" size="sm">
+                                Clear Selection
+                            </SecondaryButton>
+                        </div>
+                    </div>
+
                     <!-- Categories Table -->
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                                        <input
+                                            type="checkbox"
+                                            :checked="selectAll"
+                                            @change="selectAll = $event.target.checked"
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                    </th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Name
                                     </th>
@@ -245,8 +382,17 @@ const isDeleted = (category) => {
                                 <tr
                                     v-for="category in categories.data"
                                     :key="category.id"
-                                    :class="{ 'opacity-60': isDeleted(category) }"
+                                    :class="{ 'opacity-60': isDeleted(category), 'bg-indigo-50': isCategorySelected(category.id) }"
                                 >
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <input
+                                            v-if="!isDeleted(category) || searchForm.trashed === 'only'"
+                                            type="checkbox"
+                                            :checked="isCategorySelected(category.id)"
+                                            @change="toggleCategorySelection(category.id)"
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium" :class="isDeleted(category) ? 'text-gray-500' : 'text-gray-900'">
                                             {{ category.name }}
@@ -319,7 +465,7 @@ const isDeleted = (category) => {
                                     </td>
                                 </tr>
                                 <tr v-if="categories.data.length === 0">
-                                    <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
                                         No categories found.
                                     </td>
                                 </tr>
@@ -431,6 +577,89 @@ const isDeleted = (category) => {
                 >
                     Permanently Delete
                 </DangerButton>
+            </template>
+        </ConfirmationModal>
+
+        <!-- Bulk Delete Confirmation Modal -->
+        <ConfirmationModal :show="showBulkDeleteModal" @close="showBulkDeleteModal = false">
+            <template #title> Delete Selected Categories </template>
+
+            <template #content>
+                Are you sure you want to delete <strong>{{ bulkDeleteForm.ids.length }}</strong> selected category(ies)? These categories will be moved to trash and can be restored later. Categories with child categories cannot be deleted.
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="showBulkDeleteModal = false"> Cancel </SecondaryButton>
+
+                <DangerButton
+                    class="ml-3"
+                    :class="{ 'opacity-25': bulkDeleteForm.processing }"
+                    :disabled="bulkDeleteForm.processing"
+                    @click="performBulkDelete"
+                >
+                    Delete Categories
+                </DangerButton>
+            </template>
+        </ConfirmationModal>
+
+        <!-- Bulk Restore Confirmation Modal -->
+        <ConfirmationModal :show="showBulkRestoreModal" @close="showBulkRestoreModal = false">
+            <template #title> Restore Selected Categories </template>
+
+            <template #content>
+                Are you sure you want to restore <strong>{{ bulkRestoreForm.ids.length }}</strong> selected category(ies)? This will make the categories active again.
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="showBulkRestoreModal = false"> Cancel </SecondaryButton>
+
+                <PrimaryButton
+                    class="ml-3"
+                    :class="{ 'opacity-25': bulkRestoreForm.processing }"
+                    :disabled="bulkRestoreForm.processing"
+                    @click="performBulkRestore"
+                >
+                    Restore Categories
+                </PrimaryButton>
+            </template>
+        </ConfirmationModal>
+
+        <!-- Bulk Update Modal -->
+        <ConfirmationModal :show="showBulkUpdateModal" @close="showBulkUpdateModal = false">
+            <template #title> Update Selected Categories </template>
+
+            <template #content>
+                <div class="space-y-4">
+                    <p class="text-sm text-gray-600">
+                        Update <strong>{{ bulkUpdateForm.ids.length }}</strong> selected category(ies). Leave fields empty to skip updating them.
+                    </p>
+                    
+                    <div>
+                        <InputLabel for="bulk_is_active" value="Active Status" />
+                        <select
+                            id="bulk_is_active"
+                            v-model="bulkUpdateForm.is_active"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                            <option :value="null">No Change</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="showBulkUpdateModal = false"> Cancel </SecondaryButton>
+
+                <PrimaryButton
+                    class="ml-3"
+                    :class="{ 'opacity-25': bulkUpdateForm.processing }"
+                    :disabled="bulkUpdateForm.processing"
+                    @click="performBulkUpdate"
+                >
+                    Update Categories
+                </PrimaryButton>
             </template>
         </ConfirmationModal>
     </AppLayout>

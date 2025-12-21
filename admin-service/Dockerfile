@@ -14,6 +14,10 @@ RUN apk add --no-cache \
     npm \
     bash \
     su-exec \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-deps \
     && docker-php-ext-install \
     pdo \
     pdo_pgsql \
@@ -41,9 +45,11 @@ COPY package.json package-lock.json* ./
 # Copy application files (volumes will override in development)
 COPY . .
 
-# Copy and set up entrypoint script
+# Copy and set up entrypoint scripts
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint-queue.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chmod +x /usr/local/bin/docker-entrypoint-queue.sh
 
 # Set proper permissions for storage and cache directories
 RUN chown -R www-data:www-data /var/www/html \

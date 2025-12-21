@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -20,7 +21,6 @@ class UserController extends Controller
     {
         $query = User::query();
 
-        // Search
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -29,12 +29,10 @@ class UserController extends Controller
             });
         }
 
-        // Filter by role
         if ($request->has('role') && $request->role) {
             $query->where('role', $request->role);
         }
 
-        // Sort
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
@@ -59,7 +57,7 @@ class UserController extends Controller
     /**
      * Store a newly created user
      */
-    public function store(StoreUserRequest $request)
+    public function store(StoreUserRequest $request): RedirectResponse
     {
         $user = User::create([
             'name' => $request->name,
@@ -95,7 +93,7 @@ class UserController extends Controller
     /**
      * Update the specified user
      */
-    public function update(UpdateUserRequest $request, User $user)
+    public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
         $data = $request->validated();
 
@@ -114,7 +112,7 @@ class UserController extends Controller
     /**
      * Remove the specified user
      */
-    public function destroy(User $user)
+    public function destroy(User $user): RedirectResponse
     {
         // Prevent deleting yourself
         if ($user->id === auth()->id()) {

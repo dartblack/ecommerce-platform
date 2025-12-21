@@ -3,10 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\BulkDeleteRequest;
+use App\Http\Requests\Admin\BulkRestoreRequest;
+use App\Http\Requests\Admin\BulkUpdateCategoriesRequest;
 use App\Http\Requests\Admin\StoreCategoryRequest;
 use App\Http\Requests\Admin\UpdateCategoryRequest;
 use App\Models\Category;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,20 +23,14 @@ class CategoryController extends Controller
      */
     public function index(Request $request): Response
     {
-        // Filter by trashed status
         $trashed = $request->get('trashed', '');
-        
-        // Build base query
         $query = Category::query();
-
-        // Apply trashed filter first
         if ($trashed === 'only') {
             $query->onlyTrashed();
         } elseif ($trashed === 'with') {
             $query->withTrashed();
         }
 
-        // Load parent relationship (with trashed if needed)
         if ($trashed === 'only' || $trashed === 'with') {
             $query->with(['parent' => function ($q) {
                 $q->withTrashed();
@@ -40,48 +39,31 @@ class CategoryController extends Controller
             $query->with('parent');
         }
 
-        // Search - must be applied after trashed filter
-        // Only apply search if the parameter exists and has a non-empty value after trimming
         $search = $request->input('search');
         if ($search !== null && trim($search) !== '') {
             $search = trim($search);
             $searchTerm = '%' . $search . '%';
-            // Use case-insensitive search (ILIKE for PostgreSQL, or LOWER for other databases)
-            $dbDriver = config('database.default');
-            $isPostgres = config("database.connections.{$dbDriver}.driver") === 'pgsql';
-            
-            $query->where(function ($q) use ($searchTerm, $isPostgres) {
-                if ($isPostgres) {
-                    $q->whereRaw('name ILIKE ?', [$searchTerm])
-                        ->orWhereRaw('description ILIKE ?', [$searchTerm]);
-                } else {
-                    $q->whereRaw('LOWER(name) LIKE LOWER(?)', [$searchTerm])
-                        ->orWhereRaw('LOWER(description) LIKE LOWER(?)', [$searchTerm]);
-                }
+            $query->where(function ($q) use ($searchTerm) {
+                $q->whereRaw('name ILIKE ?', [$searchTerm])
+                    ->orWhereRaw('description ILIKE ?', [$searchTerm]);
             });
         }
 
-        // Filter by parent
         $parentId = $request->input('parent_id');
-        if ($parentId !== null) {
-            if ($parentId === 'null' || $parentId === '') {
-                $query->whereNull('parent_id');
-            } elseif ($parentId !== '') {
-                $query->where('parent_id', $parentId);
-            }
+        if ($parentId !== null && $parentId !== '') {
+            $query->where('parent_id', $parentId);
+        } else {
+            $query->whereNull('parent_id');
         }
 
-        // Filter by active status
         $isActive = $request->input('is_active');
         if ($isActive !== null && $isActive !== '') {
             $query->where('is_active', $isActive === 'true' || $isActive === '1');
         }
 
-        // Sort
         $sortBy = $request->get('sort_by', 'sort_order');
         $sortOrder = $request->get('sort_order', 'asc');
-        
-        // For trashed items, also sort by deleted_at
+
         if ($trashed === 'only' || $trashed === 'with') {
             $query->orderBy('deleted_at', 'desc')->orderBy($sortBy, $sortOrder);
         } else {
@@ -91,15 +73,13 @@ class CategoryController extends Controller
         $categories = $query->paginate($request->get('per_page', 15))
             ->withQueryString();
 
-        // Get all categories for parent dropdown (excluding trashed when viewing active)
         $allCategoriesQuery = Category::select('id', 'name', 'parent_id')
             ->with('parent:id,name');
-        
+
         if ($trashed !== 'only' && $trashed !== 'with') {
-            // Only show non-trashed categories in dropdown when viewing active categories
             $allCategoriesQuery = $allCategoriesQuery->whereNull('deleted_at');
         }
-        
+
         $allCategories = $allCategoriesQuery->orderBy('name')->get();
 
         return Inertia::render('Admin/Categories/Index', [
@@ -127,11 +107,9 @@ class CategoryController extends Controller
     /**
      * Store a newly created category
      */
-    public function store(StoreCategoryRequest $request)
+    public function store(StoreCategoryRequest $request): RedirectResponse
     {
         $slug = $request->slug ?: Str::slug($request->name);
-        
-        // Ensure slug is unique (excluding trashed)
         $originalSlug = $slug;
         $counter = 1;
         while (Category::where('slug', $slug)->exists()) {
@@ -168,10 +146,10 @@ class CategoryController extends Controller
     /**
      * Show the form for editing the specified category
      */
-    public function edit($id)
+    public function edit($id): Response|RedirectResponse
     {
         $category = Category::withTrashed()->findOrFail($id);
-        
+
         if ($category->trashed()) {
             return redirect()->route('admin.categories.show', $category->id)
                 ->with('error', 'Cannot edit a deleted category. Please restore it first.');
@@ -192,39 +170,33 @@ class CategoryController extends Controller
     /**
      * Update the specified category
      */
-    public function update(UpdateCategoryRequest $request, $id)
+    public function update(UpdateCategoryRequest $request, $id): RedirectResponse
     {
         $category = Category::withTrashed()->findOrFail($id);
-        
+
         if ($category->trashed()) {
             return redirect()->route('admin.categories.show', $category->id)
                 ->with('error', 'Cannot update a deleted category. Please restore it first.');
         }
-
         $data = $request->validated();
 
-        // Handle slug generation if not provided
         if (isset($data['name']) && (!isset($data['slug']) || empty($data['slug']))) {
             $slug = Str::slug($data['name']);
-            
-            // Ensure slug is unique (excluding current category and trashed)
             $originalSlug = $slug;
             $counter = 1;
             while (Category::where('slug', $slug)->where('id', '!=', $category->id)->exists()) {
                 $slug = $originalSlug . '-' . $counter;
                 $counter++;
             }
-            
+
             $data['slug'] = $slug;
         }
 
-        // Prevent setting category as its own parent
         if (isset($data['parent_id']) && $data['parent_id'] == $category->id) {
             return redirect()->back()
                 ->withErrors(['parent_id' => 'A category cannot be its own parent.']);
         }
 
-        // Prevent circular references (check if parent is a descendant)
         if (isset($data['parent_id']) && $data['parent_id']) {
             $parent = Category::find($data['parent_id']);
             if ($parent && $this->isDescendant($parent, $category)) {
@@ -242,10 +214,10 @@ class CategoryController extends Controller
     /**
      * Remove the specified category (soft delete)
      */
-    public function destroy($id)
+    public function destroy($id): RedirectResponse
     {
         $category = Category::findOrFail($id);
-        
+
         if (!$category->canBeDeleted()) {
             return redirect()->route('admin.categories.index')
                 ->with('error', 'Cannot delete category: it has child categories. Please delete or move child categories first.');
@@ -260,13 +232,13 @@ class CategoryController extends Controller
     /**
      * Restore a soft-deleted category
      */
-    public function restore($id)
+    public function restore($id): RedirectResponse
     {
         $category = Category::withTrashed()->findOrFail($id);
-        
+
         if ($category->trashed()) {
             $category->restore();
-            
+
             return redirect()->route('admin.categories.index')
                 ->with('success', 'Category restored successfully.');
         }
@@ -278,10 +250,10 @@ class CategoryController extends Controller
     /**
      * Permanently delete a category
      */
-    public function forceDelete($id)
+    public function forceDelete($id): RedirectResponse
     {
         $category = Category::withTrashed()->findOrFail($id);
-        
+
         if ($category->trashed()) {
             // Check if it has children (including trashed)
             if ($category->childrenWithTrashed()->count() > 0) {
@@ -290,7 +262,7 @@ class CategoryController extends Controller
             }
 
             $category->forceDelete();
-            
+
             return redirect()->route('admin.categories.index', ['trashed' => 'only'])
                 ->with('success', 'Category permanently deleted.');
         }
@@ -305,15 +277,114 @@ class CategoryController extends Controller
     private function isDescendant(Category $potentialAncestor, Category $category): bool
     {
         $parent = $category->parent;
-        
+
         while ($parent) {
             if ($parent->id === $potentialAncestor->id) {
                 return true;
             }
             $parent = $parent->parent;
         }
-        
+
         return false;
+    }
+
+    /**
+     * Bulk delete categories
+     */
+    public function bulkDelete(BulkDeleteRequest $request): RedirectResponse
+    {
+        $ids = $request->validated()['ids'];
+        $count = 0;
+        $errors = [];
+
+        DB::transaction(static function () use ($ids, &$count, &$errors) {
+            $categories = Category::whereIn('id', $ids)
+                ->whereNull('deleted_at')
+                ->get();
+
+            foreach ($categories as $category) {
+                if ($category->canBeDeleted()) {
+                    $category->delete();
+                    $count++;
+                } else {
+                    $errors[] = "Category '{$category->name}' cannot be deleted because it has child categories.";
+                }
+            }
+        });
+
+        $message = "{$count} category(ies) deleted successfully.";
+        if (!empty($errors)) {
+            $message .= ' ' . implode(' ', array_slice($errors, 0, 3));
+            if (count($errors) > 3) {
+                $message .= ' And ' . (count($errors) - 3) . ' more.';
+            }
+        }
+
+        return redirect()
+            ->route('admin.categories.index')
+            ->with($count > 0 ? 'success' : 'error', $message);
+    }
+
+    /**
+     * Bulk restore categories
+     */
+    public function bulkRestore(BulkRestoreRequest $request): RedirectResponse
+    {
+        $ids = $request->validated()['ids'];
+        $count = 0;
+
+        DB::transaction(static function () use ($ids, &$count) {
+            $categories = Category::withTrashed()
+                ->whereIn('id', $ids)
+                ->whereNotNull('deleted_at')
+                ->get();
+
+            foreach ($categories as $category) {
+                $category->restore();
+                $count++;
+            }
+        });
+
+        return redirect()
+            ->route('admin.categories.index')
+            ->with('success', "{$count} category(ies) restored successfully.");
+    }
+
+    /**
+     * Bulk update categories
+     */
+    public function bulkUpdate(BulkUpdateCategoriesRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+        $ids = $data['ids'];
+        unset($data['ids']);
+
+        // Only include fields that were actually provided
+        $updateData = array_filter($data, static fn($value) => $value !== null);
+
+        if (empty($updateData)) {
+            return redirect()
+                ->route('admin.categories.index')
+                ->with('error', 'No fields to update.');
+        }
+
+        $count = 0;
+
+        DB::transaction(static function () use ($ids, $updateData, &$count) {
+            $categories = Category::whereIn('id', $ids)
+                ->whereNull('deleted_at')
+                ->get();
+
+            foreach ($categories as $category) {
+                $category->update($updateData);
+                $count++;
+            }
+        });
+
+        $fields = implode(', ', array_keys($updateData));
+        return redirect()
+            ->route('admin.categories.index')
+            ->with('success', "{$count} category(ies) updated successfully. Updated fields: {$fields}.");
     }
 }
 

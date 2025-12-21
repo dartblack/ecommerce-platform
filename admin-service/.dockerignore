@@ -1,0 +1,41 @@
+# Exclude symlinks that will be created at runtime
+public/storage
+
+# Exclude development files
+.git
+.gitignore
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+phpunit.xml
+README.md
+
+# Exclude node_modules (will be installed in container or mounted as volume)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Exclude vendor (will be installed in container or mounted as volume)
+vendor
+
+# Exclude build artifacts
+public/build
+public/hot
+public/storage
+
+# Exclude IDE files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude logs
+storage/logs/*.log
+*.log
+

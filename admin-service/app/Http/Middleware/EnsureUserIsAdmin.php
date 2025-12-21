@@ -11,7 +11,7 @@ class EnsureUserIsAdmin
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param Closure(Request): (Response) $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -26,8 +26,9 @@ class EnsureUserIsAdmin
         }
 
         if (!auth()->user()->isAdmin()) {
-            if ($request->expectsJson()) {
+            if ($request->expectsJson() || $request->is('admin-api/*')) {
                 return response()->json([
+                    'success' => false,
                     'message' => 'Unauthorized. Admin access required.',
                 ], 403);
             }

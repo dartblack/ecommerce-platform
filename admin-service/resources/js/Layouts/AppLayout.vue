@@ -7,6 +7,7 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import NotificationCenter from '@/Components/NotificationCenter.vue';
 
 defineProps({
     title: String,
@@ -321,5 +322,8 @@ const logout = () => {
                 <slot />
             </main>
         </div>
+
+        <!-- Notification Center -->
+        <NotificationCenter />
     </div>
 </template>

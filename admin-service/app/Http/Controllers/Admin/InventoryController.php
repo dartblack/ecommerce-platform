@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\InventoryAdjusted;
+use App\Events\LowStockAlert;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AdjustInventoryRequest;
+use App\Models\Category;
 use App\Models\InventoryMovement;
 use App\Models\Product;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,44 +23,31 @@ class InventoryController extends Controller
     {
         $query = Product::query()->with('category');
 
-        // Search
         $search = $request->input('search');
         if ($search !== null && trim($search) !== '') {
             $search = trim($search);
             $searchTerm = '%' . $search . '%';
-            $dbDriver = config('database.default');
-            $isPostgres = config("database.connections.{$dbDriver}.driver") === 'pgsql';
-            
-            $query->where(function ($q) use ($searchTerm, $isPostgres) {
-                if ($isPostgres) {
-                    $q->whereRaw('name ILIKE ?', [$searchTerm])
-                        ->orWhereRaw('sku ILIKE ?', [$searchTerm]);
-                } else {
-                    $q->whereRaw('LOWER(name) LIKE LOWER(?)', [$searchTerm])
-                        ->orWhereRaw('LOWER(sku) LIKE LOWER(?)', [$searchTerm]);
-                }
+            $query->where(function ($q) use ($searchTerm) {
+                $q->whereRaw('name ILIKE ?', [$searchTerm])
+                    ->orWhereRaw('sku ILIKE ?', [$searchTerm]);
             });
         }
 
-        // Filter by stock status
         $stockStatus = $request->input('stock_status');
         if ($stockStatus !== null && $stockStatus !== '') {
             $query->where('stock_status', $stockStatus);
         }
 
-        // Filter by low stock
         $lowStock = $request->input('low_stock');
         if ($lowStock === 'true' || $lowStock === '1') {
             $query->where('stock_quantity', '<=', 10); // Consider 10 or less as low stock
         }
 
-        // Filter by category
         $categoryId = $request->input('category_id');
         if ($categoryId !== null && $categoryId !== '') {
             $query->where('category_id', $categoryId);
         }
 
-        // Sort
         $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'asc');
         $query->orderBy($sortBy, $sortOrder);
@@ -64,13 +55,11 @@ class InventoryController extends Controller
         $products = $query->paginate($request->get('per_page', 15))
             ->withQueryString();
 
-        // Get categories for filter
-        $categories = \App\Models\Category::select('id', 'name')
+        $categories = Category::select('id', 'name')
             ->whereNull('deleted_at')
             ->orderBy('name')
             ->get();
 
-        // Calculate summary stats
         $stats = [
             'total_products' => Product::count(),
             'in_stock' => Product::where('stock_status', 'in_stock')->count(),
@@ -94,14 +83,12 @@ class InventoryController extends Controller
     {
         $product = Product::with(['category', 'inventoryMovements.user'])->findOrFail($id);
 
-        // Get recent movements (last 50)
         $recentMovements = $product->inventoryMovements()
             ->with('user')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get();
 
-        // Calculate movement statistics
         $movementStats = [
             'total_additions' => InventoryMovement::where('product_id', $product->id)
                 ->where('quantity_change', '>', 0)
@@ -122,7 +109,7 @@ class InventoryController extends Controller
     /**
      * Adjust inventory for a product
      */
-    public function adjust(AdjustInventoryRequest $request, $id)
+    public function adjust(AdjustInventoryRequest $request, $id): RedirectResponse
     {
         $product = Product::findOrFail($id);
         $user = auth()->user();
@@ -146,20 +133,17 @@ class InventoryController extends Controller
                 break;
         }
 
-        // Update product stock
         $product->stock_quantity = $quantityAfter;
-        
-        // Update stock status if needed
+
         if ($quantityAfter <= 0) {
             $product->stock_status = 'out_of_stock';
-        } elseif ($product->stock_status === 'out_of_stock' && $quantityAfter > 0) {
+        } elseif ($product->stock_status === 'out_of_stock') {
             $product->stock_status = 'in_stock';
         }
 
         $product->save();
 
-        // Create inventory movement record
-        InventoryMovement::create([
+        $movement = InventoryMovement::create([
             'product_id' => $product->id,
             'user_id' => $user->id,
             'type' => $request->type,
@@ -170,6 +154,14 @@ class InventoryController extends Controller
             'notes' => $request->notes,
             'reference_number' => $request->reference_number,
         ]);
+
+        $product->refresh();
+
+        event(new InventoryAdjusted($product, $movement));
+
+        if ($quantityAfter > 0 && $quantityAfter <= 10) {
+            event(new LowStockAlert($product, $quantityAfter, 10));
+        }
 
         return redirect()->route('admin.inventory.show', $product->id)
             ->with('success', 'Inventory adjusted successfully.');
@@ -182,25 +174,21 @@ class InventoryController extends Controller
     {
         $query = InventoryMovement::with(['product', 'user']);
 
-        // Filter by product
         $productId = $request->input('product_id');
         if ($productId) {
             $query->where('product_id', $productId);
         }
 
-        // Filter by type
         $type = $request->input('type');
         if ($type) {
             $query->where('type', $type);
         }
 
-        // Filter by user
         $userId = $request->input('user_id');
         if ($userId) {
             $query->where('user_id', $userId);
         }
 
-        // Date range filter
         if ($request->input('date_from')) {
             $query->whereDate('created_at', '>=', $request->input('date_from'));
         }
@@ -208,7 +196,6 @@ class InventoryController extends Controller
             $query->whereDate('created_at', '<=', $request->input('date_to'));
         }
 
-        // Sort
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
@@ -216,7 +203,6 @@ class InventoryController extends Controller
         $movements = $query->paginate($request->get('per_page', 20))
             ->withQueryString();
 
-        // Get products for filter
         $products = Product::select('id', 'name', 'sku')
             ->orderBy('name')
             ->get();

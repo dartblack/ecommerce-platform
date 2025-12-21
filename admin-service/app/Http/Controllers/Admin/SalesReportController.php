@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response as ResponseFacade;
 use Inertia\Inertia;
@@ -18,20 +20,7 @@ class SalesReportController extends Controller
      */
     public function index(Request $request): Response
     {
-        $period = $request->get('period', 'daily'); // daily, weekly, monthly
-        $dateFrom = $request->get('date_from');
-        $dateTo = $request->get('date_to');
-
-        // Set default date range based on period
-        if (!$dateFrom || !$dateTo) {
-            [$dateFrom, $dateTo] = $this->getDefaultDateRange($period);
-        }
-
-        // Get sales data based on period
-        $salesData = $this->getSalesData($period, $dateFrom, $dateTo);
-
-        // Calculate summary statistics
-        $summary = $this->calculateSummary($dateFrom, $dateTo);
+        [$period, $dateFrom, $dateTo, $salesData, $summary] = $this->extracted($request);
 
         return Inertia::render('Admin/SalesReports/Index', [
             'period' => $period,
@@ -48,32 +37,21 @@ class SalesReportController extends Controller
     private function getDefaultDateRange(string $period): array
     {
         $today = now();
-        
-        switch ($period) {
-            case 'daily':
-                // Last 30 days
-                return [
-                    $today->copy()->subDays(29)->format('Y-m-d'),
-                    $today->format('Y-m-d'),
-                ];
-            case 'weekly':
-                // Last 12 weeks
-                return [
-                    $today->copy()->subWeeks(11)->startOfWeek()->format('Y-m-d'),
-                    $today->format('Y-m-d'),
-                ];
-            case 'monthly':
-                // Last 12 months
-                return [
-                    $today->copy()->subMonths(11)->startOfMonth()->format('Y-m-d'),
-                    $today->format('Y-m-d'),
-                ];
-            default:
-                return [
-                    $today->copy()->subDays(29)->format('Y-m-d'),
-                    $today->format('Y-m-d'),
-                ];
-        }
+
+        return match ($period) {
+            'weekly' => [
+                $today->copy()->subWeeks(11)->startOfWeek()->format('Y-m-d'),
+                $today->format('Y-m-d'),
+            ],
+            'monthly' => [
+                $today->copy()->subMonths(11)->startOfMonth()->format('Y-m-d'),
+                $today->format('Y-m-d'),
+            ],
+            default => [
+                $today->copy()->subDays(29)->format('Y-m-d'),
+                $today->format('Y-m-d'),
+            ],
+        };
     }
 
     /**
@@ -84,16 +62,11 @@ class SalesReportController extends Controller
         $query = Order::where('payment_status', 'paid')
             ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
 
-        switch ($period) {
-            case 'daily':
-                return $this->getDailySales($query, $dateFrom, $dateTo);
-            case 'weekly':
-                return $this->getWeeklySales($query, $dateFrom, $dateTo);
-            case 'monthly':
-                return $this->getMonthlySales($query, $dateFrom, $dateTo);
-            default:
-                return $this->getDailySales($query, $dateFrom, $dateTo);
-        }
+        return match ($period) {
+            'weekly' => $this->getWeeklySales($query, $dateFrom, $dateTo),
+            'monthly' => $this->getMonthlySales($query, $dateFrom, $dateTo),
+            default => $this->getDailySales($query, $dateFrom, $dateTo),
+        };
     }
 
     /**
@@ -115,29 +88,28 @@ class SalesReportController extends Controller
             ->orderBy('date', 'asc')
             ->get();
 
-        // Fill in missing dates with zero values
         $result = [];
-        $current = \Illuminate\Support\Carbon::parse($dateFrom);
-        $end = \Illuminate\Support\Carbon::parse($dateTo);
-        
+        $current = Carbon::parse($dateFrom);
+        $end = Carbon::parse($dateTo);
+
         while ($current <= $end) {
             $dateStr = $current->format('Y-m-d');
             $sale = $sales->firstWhere('date', $dateStr);
-            
+
             $result[] = [
                 'period' => $dateStr,
                 'label' => $current->format('M d, Y'),
-                'order_count' => $sale ? (int) $sale->order_count : 0,
-                'total_revenue' => $sale ? (float) $sale->total_revenue : 0,
-                'total_subtotal' => $sale ? (float) $sale->total_subtotal : 0,
-                'total_tax' => $sale ? (float) $sale->total_tax : 0,
-                'total_shipping' => $sale ? (float) $sale->total_shipping : 0,
-                'total_discount' => $sale ? (float) $sale->total_discount : 0,
+                'order_count' => $sale ? (int)$sale->order_count : 0,
+                'total_revenue' => $sale ? (float)$sale->total_revenue : 0,
+                'total_subtotal' => $sale ? (float)$sale->total_subtotal : 0,
+                'total_tax' => $sale ? (float)$sale->total_tax : 0,
+                'total_shipping' => $sale ? (float)$sale->total_shipping : 0,
+                'total_discount' => $sale ? (float)$sale->total_discount : 0,
             ];
-            
+
             $current->addDay();
         }
-        
+
         return $result;
     }
 
@@ -172,21 +144,21 @@ class SalesReportController extends Controller
 
         $result = [];
         foreach ($sales as $sale) {
-            $weekStart = \Illuminate\Support\Carbon::parse($sale->week_start);
+            $weekStart = Carbon::parse($sale->week_start);
             $weekEnd = $weekStart->copy()->endOfWeek();
-            
+
             $result[] = [
                 'period' => $sale->week,
                 'label' => $weekStart->format('M d') . ' - ' . $weekEnd->format('M d, Y'),
-                'order_count' => (int) $sale->order_count,
-                'total_revenue' => (float) $sale->total_revenue,
-                'total_subtotal' => (float) $sale->total_subtotal,
-                'total_tax' => (float) $sale->total_tax,
-                'total_shipping' => (float) $sale->total_shipping,
-                'total_discount' => (float) $sale->total_discount,
+                'order_count' => (int)$sale->order_count,
+                'total_revenue' => (float)$sale->total_revenue,
+                'total_subtotal' => (float)$sale->total_subtotal,
+                'total_tax' => (float)$sale->total_tax,
+                'total_shipping' => (float)$sale->total_shipping,
+                'total_discount' => (float)$sale->total_discount,
             ];
         }
-        
+
         return $result;
     }
 
@@ -220,20 +192,20 @@ class SalesReportController extends Controller
 
         $result = [];
         foreach ($sales as $sale) {
-            $month = \Illuminate\Support\Carbon::parse($sale->month . '-01');
-            
+            $month = Carbon::parse($sale->month . '-01');
+
             $result[] = [
                 'period' => $sale->month,
                 'label' => $month->format('F Y'),
-                'order_count' => (int) $sale->order_count,
-                'total_revenue' => (float) $sale->total_revenue,
-                'total_subtotal' => (float) $sale->total_subtotal,
-                'total_tax' => (float) $sale->total_tax,
-                'total_shipping' => (float) $sale->total_shipping,
-                'total_discount' => (float) $sale->total_discount,
+                'order_count' => (int)$sale->order_count,
+                'total_revenue' => (float)$sale->total_revenue,
+                'total_subtotal' => (float)$sale->total_subtotal,
+                'total_tax' => (float)$sale->total_tax,
+                'total_shipping' => (float)$sale->total_shipping,
+                'total_discount' => (float)$sale->total_discount,
             ];
         }
-        
+
         return $result;
     }
 
@@ -262,12 +234,12 @@ class SalesReportController extends Controller
 
         return [
             'total_orders' => $totalOrders,
-            'total_revenue' => (float) $totalRevenue,
-            'total_subtotal' => (float) $totalSubtotal,
-            'total_tax' => (float) $totalTax,
-            'total_shipping' => (float) $totalShipping,
-            'total_discount' => (float) $totalDiscount,
-            'average_order_value' => (float) $averageOrderValue,
+            'total_revenue' => (float)$totalRevenue,
+            'total_subtotal' => (float)$totalSubtotal,
+            'total_tax' => (float)$totalTax,
+            'total_shipping' => (float)$totalShipping,
+            'total_discount' => (float)$totalDiscount,
+            'average_order_value' => (float)$averageOrderValue,
             'status_breakdown' => $statusBreakdown,
         ];
     }
@@ -277,26 +249,15 @@ class SalesReportController extends Controller
      */
     public function exportCsv(Request $request): StreamedResponse
     {
-        $period = $request->get('period', 'daily');
-        $dateFrom = $request->get('date_from');
-        $dateTo = $request->get('date_to');
-
-        // Set default date range based on period
-        if (!$dateFrom || !$dateTo) {
-            [$dateFrom, $dateTo] = $this->getDefaultDateRange($period);
-        }
-
-        // Get sales data
-        $salesData = $this->getSalesData($period, $dateFrom, $dateTo);
-        $summary = $this->calculateSummary($dateFrom, $dateTo);
+        [$period, $dateFrom, $dateTo, $salesData, $summary] = $this->extracted($request);
 
         $filename = 'sales-report-' . $period . '-' . $dateFrom . '-to-' . $dateTo . '.csv';
 
-        return ResponseFacade::streamDownload(function () use ($salesData, $summary, $period) {
-            $file = fopen('php://output', 'w');
+        return ResponseFacade::streamDownload(static function () use ($salesData, $summary, $period) {
+            $file = fopen('php://output', 'wb');
 
             // BOM for UTF-8
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
             // Header
             fputcsv($file, ['Sales Report - ' . ucfirst($period)]);
@@ -351,20 +312,9 @@ class SalesReportController extends Controller
     /**
      * Export sales report to PDF
      */
-    public function exportPdf(Request $request)
+    public function exportPdf(Request $request): \Illuminate\Http\Response
     {
-        $period = $request->get('period', 'daily');
-        $dateFrom = $request->get('date_from');
-        $dateTo = $request->get('date_to');
-
-        // Set default date range based on period
-        if (!$dateFrom || !$dateTo) {
-            [$dateFrom, $dateTo] = $this->getDefaultDateRange($period);
-        }
-
-        // Get sales data
-        $salesData = $this->getSalesData($period, $dateFrom, $dateTo);
-        $summary = $this->calculateSummary($dateFrom, $dateTo);
+        [$period, $dateFrom, $dateTo, $salesData, $summary] = $this->extracted($request);
 
         $html = view('admin.sales-reports.pdf', [
             'period' => $period,
@@ -375,9 +325,28 @@ class SalesReportController extends Controller
         ])->render();
 
         $filename = 'sales-report-' . $period . '-' . $dateFrom . '-to-' . $dateTo . '.pdf';
-       
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
-        return $pdf->download($filename);
+
+        return Pdf::loadHTML($html)->download($filename);
+    }
+
+    /**
+     * @param Request $request
+     * @return array
+     */
+    private function extracted(Request $request): array
+    {
+        $period = $request->get('period', 'daily'); // daily, weekly, monthly
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        if (!$dateFrom || !$dateTo) {
+            [$dateFrom, $dateTo] = $this->getDefaultDateRange($period);
+        }
+
+        $salesData = $this->getSalesData($period, $dateFrom, $dateTo);
+
+        $summary = $this->calculateSummary($dateFrom, $dateTo);
+        return array($period, $dateFrom, $dateTo, $salesData, $summary);
     }
 }
 

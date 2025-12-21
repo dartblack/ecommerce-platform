@@ -1,8 +1,557 @@
 {
   "openapi": "3.0.0",
-  "paths": {},
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "operationId": "PassportController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        },
+        "summary": "Login user",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/products": {
+      "get": {
+        "operationId": "ProductsController_getProducts",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Items per page",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search query for product name, description, or SKU",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by category ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "categoryIds",
+            "required": false,
+            "in": "query",
+            "description": "Filter by category IDs",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          {
+            "name": "minPrice",
+            "required": false,
+            "in": "query",
+            "description": "Minimum price",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "required": false,
+            "in": "query",
+            "description": "Maximum price",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "stockStatus",
+            "required": false,
+            "in": "query",
+            "description": "Filter by stock status",
+            "schema": {
+              "example": "in_stock",
+              "type": "string",
+              "enum": [
+                "in_stock",
+                "out_of_stock",
+                "on_backorder"
+              ]
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by active status",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Sort field",
+            "schema": {
+              "default": "sort_order",
+              "example": "price",
+              "type": "string",
+              "enum": [
+                "price",
+                "name",
+                "created_at",
+                "sort_order"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "description": "Sort order",
+            "schema": {
+              "default": "asc",
+              "example": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get products list with pagination and filters",
+        "tags": [
+          "Products"
+        ]
+      },
+      "post": {
+        "operationId": "ProductsController_createProduct",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product creation job queued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Product creation job queued successfully"
+                    },
+                    "jobId": {
+                      "type": "string",
+                      "example": "123"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a new product (Admin only)",
+        "tags": [
+          "Products"
+        ]
+      }
+    },
+    "/api/products/{id}": {
+      "get": {
+        "operationId": "ProductsController_getProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Product ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found"
+          }
+        },
+        "summary": "Get single product by ID",
+        "tags": [
+          "Products"
+        ]
+      },
+      "put": {
+        "operationId": "ProductsController_updateProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Product ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product update job queued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Product update job queued successfully"
+                    },
+                    "jobId": {
+                      "type": "string",
+                      "example": "123"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "Product not found"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a product (Admin only)",
+        "tags": [
+          "Products"
+        ]
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "operationId": "OrdersController_createOrder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a new order",
+        "tags": [
+          "Orders"
+        ]
+      },
+      "get": {
+        "operationId": "OrdersController_getOrders",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders retrieved successfully"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get orders list",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}": {
+      "get": {
+        "operationId": "OrdersController_getOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order retrieved successfully"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get order by ID",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}/cancel": {
+      "put": {
+        "operationId": "OrdersController_cancelOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order cancelled successfully"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Cancel order",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}/confirm-payment": {
+      "post": {
+        "operationId": "OrdersController_confirmPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment confirmed successfully"
+          },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Confirm payment for order (mock)",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/internal/orders/{orderNumber}/status": {
+      "put": {
+        "operationId": "InternalOrdersController_updateOrderStatus",
+        "parameters": [
+          {
+            "name": "orderNumber",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrderStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order status updated successfully"
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Update order status by order number (Internal)",
+        "tags": [
+          "Internal Orders"
+        ]
+      }
+    }
+  },
   "info": {
-    "title": "GlobalCell Backend API",
+    "title": "Ecommerce-Platform Backend API",
     "description": "",
     "version": "1.0.5",
     "contact": {}
@@ -11,12 +560,655 @@
   "servers": [],
   "components": {
     "securitySchemes": {
-      "bearer": {
+      "access-token": {
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "type": "http"
       }
     },
-    "schemas": {}
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address",
+            "example": "admin@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "description": "User password",
+            "example": "password123"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "UserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "email": {
+            "type": "string",
+            "example": "john@example.com"
+          },
+          "role": {
+            "type": "string",
+            "example": "admin"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Login successful"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "$ref": "#/components/schemas/UserDto"
+              },
+              "token": {
+                "type": "string"
+              },
+              "tokenType": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "user",
+              "token",
+              "tokenType"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "ProductDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Laptop Pro 15"
+          },
+          "slug": {
+            "type": "string",
+            "example": "laptop-pro-15"
+          },
+          "description": {
+            "type": "string",
+            "example": "High-performance laptop..."
+          },
+          "shortDescription": {
+            "type": "string",
+            "example": "Powerful laptop for professionals"
+          },
+          "sku": {
+            "type": "string",
+            "example": "LAPTOP-001"
+          },
+          "price": {
+            "type": "number",
+            "example": 1299.99
+          },
+          "compareAtPrice": {
+            "type": "number",
+            "example": 1499.99
+          },
+          "categoryId": {
+            "type": "number",
+            "example": 1
+          },
+          "categoryName": {
+            "type": "string",
+            "example": "Electronics"
+          },
+          "stockQuantity": {
+            "type": "number",
+            "example": 50
+          },
+          "stockStatus": {
+            "type": "string",
+            "example": "in_stock",
+            "enum": [
+              "in_stock",
+              "out_of_stock",
+              "on_backorder"
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "image": {
+            "type": "string",
+            "example": "product-image.jpg"
+          },
+          "imageUrl": {
+            "type": "string",
+            "example": "http://example.com/image.jpg"
+          },
+          "sortOrder": {
+            "type": "number",
+            "example": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2024-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2024-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "sku",
+          "price",
+          "stockQuantity",
+          "stockStatus",
+          "isActive",
+          "sortOrder",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          },
+          "total": {
+            "type": "number",
+            "example": 100
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 5
+          },
+          "hasNext": {
+            "type": "boolean",
+            "example": true
+          },
+          "hasPrev": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "page",
+          "limit",
+          "total",
+          "totalPages",
+          "hasNext",
+          "hasPrev"
+        ]
+      },
+      "ProductListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMetaDto"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "CreateProductDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Laptop Pro 15",
+            "description": "Product name"
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "laptop-pro-15",
+            "description": "Product slug (auto-generated if not provided)"
+          },
+          "description": {
+            "type": "string",
+            "example": "High-performance laptop...",
+            "description": "Full product description"
+          },
+          "shortDescription": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Powerful laptop for professionals",
+            "description": "Short product description"
+          },
+          "sku": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Product SKU"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Product price"
+          },
+          "compareAtPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Compare at price (original price)"
+          },
+          "categoryId": {
+            "type": "number",
+            "description": "Category ID"
+          },
+          "stockQuantity": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Stock quantity"
+          },
+          "stockStatus": {
+            "enum": [
+              "in_stock",
+              "out_of_stock",
+              "on_backorder"
+            ],
+            "type": "string",
+            "example": "in_stock",
+            "description": "Stock status"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is product active"
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "description": "Product image file (jpeg, png, jpg, gif, webp, max 2MB)"
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Sort order"
+          }
+        },
+        "required": [
+          "name",
+          "sku",
+          "price"
+        ]
+      },
+      "UpdateProductDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Laptop Pro 15",
+            "description": "Product name"
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "laptop-pro-15",
+            "description": "Product slug"
+          },
+          "description": {
+            "type": "string",
+            "example": "High-performance laptop...",
+            "description": "Full product description"
+          },
+          "shortDescription": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Powerful laptop for professionals",
+            "description": "Short product description"
+          },
+          "sku": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "LAPTOP-001",
+            "description": "Product SKU"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 1299.99,
+            "description": "Product price"
+          },
+          "compareAtPrice": {
+            "type": "number",
+            "minimum": 0,
+            "example": 1499.99,
+            "description": "Compare at price (original price)"
+          },
+          "categoryId": {
+            "type": "number",
+            "example": 1,
+            "description": "Category ID"
+          },
+          "stockQuantity": {
+            "type": "number",
+            "minimum": 0,
+            "example": 50,
+            "description": "Stock quantity"
+          },
+          "stockStatus": {
+            "enum": [
+              "in_stock",
+              "out_of_stock",
+              "on_backorder"
+            ],
+            "type": "string",
+            "example": "in_stock",
+            "description": "Stock status"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "Is product active"
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0,
+            "description": "Sort order"
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "description": "Product image file (jpeg, png, jpg, gif, webp, max 2MB)"
+          }
+        }
+      },
+      "OrderItemDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "number",
+            "minimum": 1,
+            "example": 1,
+            "description": "Product ID"
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 1,
+            "example": 2,
+            "description": "Quantity of the product"
+          }
+        },
+        "required": [
+          "productId",
+          "quantity"
+        ]
+      },
+      "ShippingAddressDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "John",
+            "description": "First name"
+          },
+          "lastName": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Doe",
+            "description": "Last name"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "format": "email",
+            "example": "john.doe@example.com",
+            "description": "Email address"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "example": "+1234567890",
+            "description": "Phone number"
+          },
+          "addressLine1": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "123 Main St",
+            "description": "Address line 1"
+          },
+          "addressLine2": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Apt 4B",
+            "description": "Address line 2"
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "New York",
+            "description": "City"
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "NY",
+            "description": "State or province"
+          },
+          "postalCode": {
+            "type": "string",
+            "maxLength": 20,
+            "example": "10001",
+            "description": "Postal code"
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "United States",
+            "description": "Country"
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "email",
+          "addressLine1",
+          "city",
+          "postalCode",
+          "country"
+        ]
+      },
+      "PaymentDetailsDto": {
+        "type": "object",
+        "properties": {
+          "cardNumber": {
+            "type": "string",
+            "pattern": "/^[\\d\\s]{13,19}$/",
+            "example": "4111111111111111",
+            "description": "Card number (13-19 digits)"
+          },
+          "cardHolderName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100,
+            "example": "John Doe",
+            "description": "Card holder name"
+          },
+          "expiryMonth": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 12,
+            "example": 12,
+            "description": "Expiry month (1-12)"
+          },
+          "expiryYear": {
+            "type": "number",
+            "minimum": 2024,
+            "maximum": 2100,
+            "example": 2025,
+            "description": "Expiry year (4 digits)"
+          },
+          "cvv": {
+            "type": "string",
+            "pattern": "/^\\d{3,4}$/",
+            "example": "123",
+            "description": "CVV (3-4 digits)"
+          }
+        },
+        "required": [
+          "cardNumber",
+          "cardHolderName",
+          "expiryMonth",
+          "expiryYear",
+          "cvv"
+        ]
+      },
+      "CreateOrderDto": {
+        "type": "object",
+        "properties": {
+          "orderItems": {
+            "minItems": 1,
+            "example": [
+              {
+                "productId": 1,
+                "quantity": 2
+              },
+              {
+                "productId": 2,
+                "quantity": 1
+              }
+            ],
+            "description": "Array of order items",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemDto"
+            }
+          },
+          "shippingAddress": {
+            "description": "Shipping address",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShippingAddressDto"
+              }
+            ]
+          },
+          "billingAddress": {
+            "description": "Billing address (defaults to shipping address if not provided)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShippingAddressDto"
+              }
+            ]
+          },
+          "paymentMethod": {
+            "type": "string",
+            "maxLength": 50,
+            "example": "credit_card",
+            "description": "Payment method"
+          },
+          "paymentDetails": {
+            "description": "Payment details",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentDetailsDto"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "Please leave at the front door",
+            "description": "Order notes"
+          }
+        },
+        "required": [
+          "orderItems",
+          "shippingAddress",
+          "paymentDetails"
+        ]
+      },
+      "UpdateOrderStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "pending",
+              "processing",
+              "shipped",
+              "delivered",
+              "cancelled",
+              "refunded",
+              "success"
+            ],
+            "type": "string",
+            "description": "New order status",
+            "example": "shipped"
+          },
+          "trackingNumber": {
+            "type": "string",
+            "description": "Tracking number for shipped orders",
+            "example": "TRACK123456"
+          },
+          "paymentStatus": {
+            "enum": [
+              "pending",
+              "paid",
+              "failed",
+              "refunded"
+            ],
+            "type": "string",
+            "description": "Payment status",
+            "example": "paid"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      }
+    }
   }
 }

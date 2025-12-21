@@ -1,0 +1,29 @@
+Order Confirmation
+
+Thank you for your order!
+
+Order Details:
+  Order Number: {{orderNumber}}
+  Order Date: {{formatDate orderDate}}
+
+Items Ordered:
+{{#each items}}
+  {{productName}} x{{quantity}} - ${{formatCurrency price}} = ${{formatCurrency subtotal}}
+{{/each}}
+
+Shipping Address:
+  {{shippingAddress.firstName}} {{shippingAddress.lastName}}
+  {{shippingAddress.addressLine1}}
+  {{#if shippingAddress.addressLine2}}{{shippingAddress.addressLine2}}
+  {{/if}}{{shippingAddress.city}}{{#if shippingAddress.state}}, {{shippingAddress.state}}{{/if}} {{shippingAddress.postalCode}}
+  {{shippingAddress.country}}
+
+Order Summary:
+  Subtotal: ${{formatCurrency subtotal}}
+  Tax: ${{formatCurrency tax}}
+  Shipping: ${{formatCurrency shipping}}
+  {{#if discount}}Discount: -${{formatCurrency discount}}
+  {{/if}}Total: ${{formatCurrency total}}
+
+If you have any questions, please contact our support team.
+

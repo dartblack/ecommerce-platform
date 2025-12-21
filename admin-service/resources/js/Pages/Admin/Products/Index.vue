@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -32,6 +32,38 @@ const showForceDeleteModal = ref(false);
 const productToDelete = ref(null);
 const productToRestore = ref(null);
 const productToForceDelete = ref(null);
+
+// Bulk operations
+const selectedProducts = ref([]);
+const showBulkDeleteModal = ref(false);
+const showBulkRestoreModal = ref(false);
+const showBulkUpdateModal = ref(false);
+const bulkDeleteForm = useForm({ ids: [] });
+const bulkRestoreForm = useForm({ ids: [] });
+const bulkUpdateForm = useForm({
+    ids: [],
+    is_active: null,
+    stock_status: null,
+    category_id: null,
+});
+
+const selectAll = computed({
+    get: () => {
+        const activeProducts = props.products.data.filter(p => !isDeleted(p));
+        return activeProducts.length > 0 && activeProducts.every(p => selectedProducts.value.includes(p.id));
+    },
+    set: (value) => {
+        if (value) {
+            const activeProducts = props.products.data.filter(p => !isDeleted(p));
+            selectedProducts.value = [...new Set([...selectedProducts.value, ...activeProducts.map(p => p.id)])];
+        } else {
+            const activeProductIds = props.products.data.filter(p => !isDeleted(p)).map(p => p.id);
+            selectedProducts.value = selectedProducts.value.filter(id => !activeProductIds.includes(id));
+        }
+    },
+});
+
+const hasSelectedProducts = computed(() => selectedProducts.value.length > 0);
 
 const search = () => {
     searchForm.get(route('admin.products.index'), {
@@ -129,6 +161,88 @@ const formatPrice = (price) => {
         style: 'currency',
         currency: 'USD',
     }).format(price);
+};
+
+// Bulk operations handlers
+const toggleProductSelection = (productId) => {
+    const index = selectedProducts.value.indexOf(productId);
+    if (index > -1) {
+        selectedProducts.value.splice(index, 1);
+    } else {
+        selectedProducts.value.push(productId);
+    }
+};
+
+const isProductSelected = (productId) => {
+    return selectedProducts.value.includes(productId);
+};
+
+const confirmBulkDelete = () => {
+    if (selectedProducts.value.length === 0) return;
+    bulkDeleteForm.ids = selectedProducts.value;
+    showBulkDeleteModal.value = true;
+};
+
+const performBulkDelete = () => {
+    bulkDeleteForm.post(route('admin.products.bulk-delete'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showBulkDeleteModal.value = false;
+            selectedProducts.value = [];
+            bulkDeleteForm.reset();
+        },
+    });
+};
+
+const confirmBulkRestore = () => {
+    if (selectedProducts.value.length === 0) return;
+    bulkRestoreForm.ids = selectedProducts.value;
+    showBulkRestoreModal.value = true;
+};
+
+const performBulkRestore = () => {
+    bulkRestoreForm.post(route('admin.products.bulk-restore'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showBulkRestoreModal.value = false;
+            selectedProducts.value = [];
+            bulkRestoreForm.reset();
+        },
+    });
+};
+
+const openBulkUpdateModal = () => {
+    if (selectedProducts.value.length === 0) return;
+    bulkUpdateForm.ids = selectedProducts.value;
+    bulkUpdateForm.is_active = null;
+    bulkUpdateForm.stock_status = null;
+    bulkUpdateForm.category_id = null;
+    showBulkUpdateModal.value = true;
+};
+
+const performBulkUpdate = () => {
+    const data = {
+        ids: bulkUpdateForm.ids,
+    };
+    
+    if (bulkUpdateForm.is_active !== null) {
+        data.is_active = bulkUpdateForm.is_active === 'true' || bulkUpdateForm.is_active === true;
+    }
+    if (bulkUpdateForm.stock_status) {
+        data.stock_status = bulkUpdateForm.stock_status;
+    }
+    if (bulkUpdateForm.category_id) {
+        data.category_id = parseInt(bulkUpdateForm.category_id);
+    }
+
+    bulkUpdateForm.transform(() => data).post(route('admin.products.bulk-update'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showBulkUpdateModal.value = false;
+            selectedProducts.value = [];
+            bulkUpdateForm.reset();
+        },
+    });
 };
 </script>
 
@@ -228,11 +342,44 @@ const formatPrice = (price) => {
                         </form>
                     </div>
 
+                    <!-- Bulk Actions Bar -->
+                    <div v-if="hasSelectedProducts" class="px-6 py-3 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between">
+                        <div class="text-sm text-indigo-900">
+                            <strong>{{ selectedProducts.length }}</strong> product(s) selected
+                        </div>
+                        <div class="flex gap-2">
+                            <template v-if="searchForm.trashed !== 'only'">
+                                <SecondaryButton @click="openBulkUpdateModal" size="sm">
+                                    Update
+                                </SecondaryButton>
+                                <DangerButton @click="confirmBulkDelete" size="sm">
+                                    Delete
+                                </DangerButton>
+                            </template>
+                            <template v-else>
+                                <PrimaryButton @click="confirmBulkRestore" size="sm">
+                                    Restore
+                                </PrimaryButton>
+                            </template>
+                            <SecondaryButton @click="selectedProducts = []" size="sm">
+                                Clear Selection
+                            </SecondaryButton>
+                        </div>
+                    </div>
+
                     <!-- Products Table -->
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                                        <input
+                                            type="checkbox"
+                                            :checked="selectAll"
+                                            @change="selectAll = $event.target.checked"
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                    </th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Image
                                     </th>
@@ -263,8 +410,17 @@ const formatPrice = (price) => {
                                 <tr
                                     v-for="product in products.data"
                                     :key="product.id"
-                                    :class="{ 'opacity-60': isDeleted(product) }"
+                                    :class="{ 'opacity-60': isDeleted(product), 'bg-indigo-50': isProductSelected(product.id) }"
                                 >
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <input
+                                            v-if="!isDeleted(product) || searchForm.trashed === 'only'"
+                                            type="checkbox"
+                                            :checked="isProductSelected(product.id)"
+                                            @change="toggleProductSelection(product.id)"
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <img
                                             v-if="product.image_url"
@@ -367,7 +523,7 @@ const formatPrice = (price) => {
                                     </td>
                                 </tr>
                                 <tr v-if="products.data.length === 0">
-                                    <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">
+                                    <td colspan="9" class="px-6 py-4 text-center text-sm text-gray-500">
                                         No products found.
                                     </td>
                                 </tr>
@@ -473,6 +629,121 @@ const formatPrice = (price) => {
                 >
                     Permanently Delete
                 </DangerButton>
+            </template>
+        </ConfirmationModal>
+
+        <!-- Bulk Delete Confirmation Modal -->
+        <ConfirmationModal :show="showBulkDeleteModal" @close="showBulkDeleteModal = false">
+            <template #title> Delete Selected Products </template>
+
+            <template #content>
+                Are you sure you want to delete <strong>{{ bulkDeleteForm.ids.length }}</strong> selected product(s)? These products will be moved to trash and can be restored later.
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="showBulkDeleteModal = false"> Cancel </SecondaryButton>
+
+                <DangerButton
+                    class="ml-3"
+                    :class="{ 'opacity-25': bulkDeleteForm.processing }"
+                    :disabled="bulkDeleteForm.processing"
+                    @click="performBulkDelete"
+                >
+                    Delete Products
+                </DangerButton>
+            </template>
+        </ConfirmationModal>
+
+        <!-- Bulk Restore Confirmation Modal -->
+        <ConfirmationModal :show="showBulkRestoreModal" @close="showBulkRestoreModal = false">
+            <template #title> Restore Selected Products </template>
+
+            <template #content>
+                Are you sure you want to restore <strong>{{ bulkRestoreForm.ids.length }}</strong> selected product(s)? This will make the products active again.
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="showBulkRestoreModal = false"> Cancel </SecondaryButton>
+
+                <PrimaryButton
+                    class="ml-3"
+                    :class="{ 'opacity-25': bulkRestoreForm.processing }"
+                    :disabled="bulkRestoreForm.processing"
+                    @click="performBulkRestore"
+                >
+                    Restore Products
+                </PrimaryButton>
+            </template>
+        </ConfirmationModal>
+
+        <!-- Bulk Update Modal -->
+        <ConfirmationModal :show="showBulkUpdateModal" @close="showBulkUpdateModal = false">
+            <template #title> Update Selected Products </template>
+
+            <template #content>
+                <div class="space-y-4">
+                    <p class="text-sm text-gray-600">
+                        Update <strong>{{ bulkUpdateForm.ids.length }}</strong> selected product(s). Leave fields empty to skip updating them.
+                    </p>
+                    
+                    <div>
+                        <InputLabel for="bulk_is_active" value="Active Status" />
+                        <select
+                            id="bulk_is_active"
+                            v-model="bulkUpdateForm.is_active"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                            <option :value="null">No Change</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <InputLabel for="bulk_stock_status" value="Stock Status" />
+                        <select
+                            id="bulk_stock_status"
+                            v-model="bulkUpdateForm.stock_status"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                            <option value="">No Change</option>
+                            <option value="in_stock">In Stock</option>
+                            <option value="out_of_stock">Out of Stock</option>
+                            <option value="on_backorder">On Backorder</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <InputLabel for="bulk_category_id" value="Category" />
+                        <select
+                            id="bulk_category_id"
+                            v-model="bulkUpdateForm.category_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                            <option value="">No Change</option>
+                            <option
+                                v-for="category in categories"
+                                :key="category.id"
+                                :value="category.id"
+                            >
+                                {{ category.name }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="showBulkUpdateModal = false"> Cancel </SecondaryButton>
+
+                <PrimaryButton
+                    class="ml-3"
+                    :class="{ 'opacity-25': bulkUpdateForm.processing }"
+                    :disabled="bulkUpdateForm.processing"
+                    @click="performBulkUpdate"
+                >
+                    Update Products
+                </PrimaryButton>
             </template>
         </ConfirmationModal>
     </AppLayout>

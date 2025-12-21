@@ -35,4 +35,30 @@ return [
         ],
     ],
 
+    'elasticsearch' => [
+        'host' => env('ELASTICSEARCH_HOST', 'http://elasticsearch:9200'),
+        'products_index' => env('ELASTICSEARCH_PRODUCTS_INDEX', 'products'),
+    ],
+
+    'api_key' => env('SERVICE_API_KEY'),
+
+    'api_gateway' => [
+        'url' => env('API_GATEWAY_URL', 'http://api-gateway:3000'),
+        'api_key' => env('API_GATEWAY_API_KEY', 'P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97'),
+    ],
+
+    'pusher' => [
+        'key' => env('PUSHER_APP_KEY'),
+        'secret' => env('PUSHER_APP_SECRET'),
+        'app_id' => env('PUSHER_APP_ID'),
+        'options' => [
+            'cluster' => env('PUSHER_APP_CLUSTER'),
+            'host' => env('PUSHER_HOST') ?: 'api-'.env('PUSHER_APP_CLUSTER', 'mt1').'.pusher.com',
+            'port' => env('PUSHER_PORT', 443),
+            'scheme' => env('PUSHER_SCHEME', 'https'),
+            'encrypted' => true,
+            'useTLS' => env('PUSHER_SCHEME', 'https') === 'https',
+        ],
+    ],
+
 ];

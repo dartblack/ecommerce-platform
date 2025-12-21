@@ -9,7 +9,6 @@ import {
   Index,
 } from 'typeorm';
 import { Order } from './order.entity';
-import { Product } from './product.entity';
 
 @Entity('order_items')
 export class OrderItem {
@@ -21,7 +20,6 @@ export class OrderItem {
   orderId: number;
 
   @Column({ name: 'product_id' })
-  @Index()
   productId: number;
 
   @Column({ name: 'product_name' })
@@ -50,11 +48,4 @@ export class OrderItem {
   })
   @JoinColumn({ name: 'order_id' })
   order: Order;
-
-  @ManyToOne(() => Product, (product) => product.orderItems, {
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'product_id' })
-  product: Product;
 }
-

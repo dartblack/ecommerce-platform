@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Events\OrderCreated;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,13 +77,22 @@ class Order extends Model
     }
 
     /**
+     * The event map for the model.
+     *
+     * @var array<string, class-string>
+     */
+    protected $dispatchesEvents = [
+        'created' => OrderCreated::class,
+    ];
+
+    /**
      * Boot the model.
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 
-        static::creating(function ($order) {
+        static::creating(static function ($order) {
             if (empty($order->order_number)) {
                 $order->order_number = static::generateOrderNumber();
             }
@@ -96,7 +107,7 @@ class Order extends Model
     protected static function generateOrderNumber(): string
     {
         do {
-            $orderNumber = 'ORD-' . strtoupper(uniqid());
+            $orderNumber = 'ORD-' . strtoupper(uniqid('', true));
         } while (static::where('order_number', $orderNumber)->exists());
 
         return $orderNumber;
@@ -132,11 +143,11 @@ class Order extends Model
     /**
      * Scope a query to only include orders with a specific status.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param Builder $query
      * @param string $status
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeStatus($query, string $status)
+    public function scopeStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
     }
@@ -144,11 +155,11 @@ class Order extends Model
     /**
      * Scope a query to only include orders with a specific payment status.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param Builder $query
      * @param string $paymentStatus
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopePaymentStatus($query, string $paymentStatus)
+    public function scopePaymentStatus($query, string $paymentStatus): Builder
     {
         return $query->where('payment_status', $paymentStatus);
     }

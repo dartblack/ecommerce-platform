@@ -2,11 +2,10 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { HttpExceptionFilter } from './common/filters';
 import { ConfigService } from '@nestjs/config';
-import * as fs from "fs";
-import { join } from "path";
-
+import * as fs from 'fs';
+import { join } from 'path';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,7 +25,7 @@ async function bootstrap() {
     }),
   );
 
-  app.setGlobalPrefix("api");
+  app.setGlobalPrefix('api');
   app.enableCors();
   createSwagger(app);
 
@@ -36,26 +35,27 @@ async function bootstrap() {
   console.log(`Application is running on: http://localhost:${port}/api`);
 }
 bootstrap().catch((error: never) => {
-  console.error("Startup error:", error);
+  console.error('Startup error:', error);
 });
-
-
 
 const createSwagger = (app: INestApplication) => {
   const swaggerConfig = new DocumentBuilder()
-    .setTitle("Ecommerce-Platform Backend API")
-    .setVersion("1.0.5")
-    .addBearerAuth()
+    .setTitle('Ecommerce-Platform Backend API')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'access-token',
+    )
+    .setVersion('1.0.5')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
   fs.writeFileSync(
-    join(__dirname, "../swagger.json"),
+    join(__dirname, '../swagger.json'),
     JSON.stringify(document, null, 2),
   );
 
-  SwaggerModule.setup("api/docs", app, document, {
+  SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },

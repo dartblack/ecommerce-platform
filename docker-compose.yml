@@ -60,9 +60,61 @@ services:
       - CACHE_DRIVER=redis
       - SESSION_DRIVER=database
       - QUEUE_CONNECTION=redis
-      - ADMIN_NAME=Admin User
-      - ADMIN_EMAIL=admin@example.com
-      - ADMIN_PASSWORD=password
+      - BROADCAST_CONNECTION=pusher
+      - MAIL_MAILER=smtp
+      - MAIL_HOST=mailhog
+      - MAIL_PORT=1025
+      - MAIL_USERNAME=
+      - MAIL_PASSWORD=
+      - MAIL_ENCRYPTION=
+      - MAIL_FROM_ADDRESS=noreply@example.com
+      - MAIL_FROM_NAME=noreply
+      - SERVICE_API_KEY=P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97
+
+  admin-queue-worker:
+    build:
+      context: ./admin-service
+      dockerfile: Dockerfile
+    container_name: ecommerce-admin-queue-worker
+    volumes:
+      - ./admin-service:/var/www/html
+      - ./admin-service/vendor:/var/www/html/vendor
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    depends_on:
+      - postgresdb
+      - redis
+      - admin-service
+    entrypoint: ["/usr/local/bin/docker-entrypoint-queue.sh"]
+    environment:
+      - APP_NAME=Laravel
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://localhost
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgresdb
+      - DB_PORT=5432
+      - DB_DATABASE=ecommerce
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=null
+      - REDIS_PORT=6379
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=database
+      - QUEUE_CONNECTION=redis
+      - BROADCAST_CONNECTION=pusher
+      - MAIL_MAILER=smtp
+      - MAIL_HOST=mailhog
+      - MAIL_PORT=1025
+      - MAIL_USERNAME=
+      - MAIL_PASSWORD=
+      - MAIL_ENCRYPTION=
+      - MAIL_FROM_ADDRESS=noreply@example.com
+      - MAIL_FROM_NAME=noreply
+      - SERVICE_API_KEY=P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
 
   api-gateway:
     build:
@@ -74,13 +126,13 @@ services:
     volumes:
       - ./api-gateway:/app
       - /app/node_modules
-      - /app/dist
     networks:
       - ecommerce-network
     restart: unless-stopped
     depends_on:
       - postgresdb
       - redis
+      - mailhog
     environment:
       - NODE_ENV=development
       - PORT=3000
@@ -88,9 +140,18 @@ services:
       - DB_PORT=5432
       - DB_USERNAME=postgres
       - DB_PASSWORD=postgres
-      - DB_DATABASE=ecommerce
+      - DB_DATABASE=api-gateway
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - MAIL_HOST=mailhog
+      - MAIL_PORT=1025
+      - MAIL_SECURE=false
+      - MAIL_FROM_ADDRESS=noreply@ecommerce.com
+      - MAIL_FROM_NAME=Ecommerce Platform
+      - API_KEY_SECRET=P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97
+      - ADMIN_SERVICE_API_KEY=P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97
+    entrypoint: ["sh", "/app/docker-entrypoint.sh"]
+    command: ["npm", "run", "start:dev"]
 
   nginx:
     image: nginx:alpine
@@ -110,9 +171,52 @@ services:
       - admin-service
       - api-gateway
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: ecommerce-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - '9200:9200'
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - ecommerce-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.3
+    container_name: ecommerce-kibana
+    ports:
+      - '5601:5601'
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    networks:
+      - ecommerce-network
+  
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ecommerce-mailhog
+    ports:
+      - "1025:1025" # SMTP port for applications to send mail to
+      - "8025:8025" # Web interface port to view captured emails
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
+  esdata:
 
 
 networks:

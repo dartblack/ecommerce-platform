@@ -1,10 +1,12 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import AdjustInventoryModal from '@/Components/AdjustInventoryModal.vue';
 
 const props = defineProps({
     products: Object,
@@ -19,6 +21,9 @@ const searchForm = useForm({
     low_stock: props.filters?.low_stock || '',
     category_id: props.filters?.category_id || '',
 });
+
+const showAdjustModal = ref(false);
+const selectedProduct = ref(null);
 
 const search = () => {
     searchForm.get(route('admin.inventory.index'), {
@@ -38,6 +43,16 @@ const resetFilters = () => {
         preserveScroll: false,
         replace: true,
     });
+};
+
+const openAdjustModal = (product) => {
+    selectedProduct.value = product;
+    showAdjustModal.value = true;
+};
+
+const closeAdjustModal = () => {
+    showAdjustModal.value = false;
+    selectedProduct.value = null;
 };
 
 const getStockStatusBadgeClass = (status) => {
@@ -290,12 +305,21 @@ const getStockLevelClass = (quantity) => {
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <Link
-                                            :href="route('admin.inventory.show', product.id)"
-                                            class="text-indigo-600 hover:text-indigo-900"
-                                        >
-                                            Manage
-                                        </Link>
+                                        <div class="flex justify-end gap-2">
+                                            <button
+                                                @click="openAdjustModal(product)"
+                                                class="text-indigo-600 hover:text-indigo-900 font-medium"
+                                            >
+                                                Adjust
+                                            </button>
+                                            <span class="text-gray-300">|</span>
+                                            <Link
+                                                :href="route('admin.inventory.show', product.id)"
+                                                class="text-indigo-600 hover:text-indigo-900 font-medium"
+                                            >
+                                                Manage
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                                 <tr v-if="products.data.length === 0">
@@ -338,6 +362,13 @@ const getStockLevelClass = (quantity) => {
                 </div>
             </div>
         </div>
+
+        <!-- Adjust Inventory Modal -->
+        <AdjustInventoryModal
+            :show="showAdjustModal"
+            :product="selectedProduct"
+            @close="closeAdjustModal"
+        />
     </AppLayout>
 </template>
 

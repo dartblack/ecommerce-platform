@@ -18,4 +18,3 @@ export class ErrorResponseDto {
     this.path = path;
   }
 }
-

@@ -5,12 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
-  ManyToOne,
   OneToMany,
-  JoinColumn,
   Index,
 } from 'typeorm';
-import { User } from './user.entity';
 import { OrderItem } from './order-item.entity';
 
 export enum OrderStatus {
@@ -20,6 +17,7 @@ export enum OrderStatus {
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
   REFUNDED = 'refunded',
+  SUCCESS = 'success',
 }
 
 export enum PaymentStatus {
@@ -166,15 +164,8 @@ export class Order {
   @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt: Date;
 
-  @ManyToOne(() => User, (user) => user.orders, {
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
-
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {
     cascade: true,
   })
   orderItems: OrderItem[];
 }
-
