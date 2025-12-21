@@ -8,10 +8,8 @@ import { ProductDto } from '../dtos/product-response.dto';
 export class GetProductHandler implements IQueryHandler<GetProductQuery> {
   constructor(private readonly elasticsearchService: ElasticsearchService) {}
 
-  async execute(query: GetProductQuery): Promise<ProductDto> {
-    const product: ProductDto = await this.elasticsearchService.getProductById(
-      query.id,
-    );
+  async execute(query: GetProductQuery): Promise<ProductDto | null> {
+    const product = await this.elasticsearchService.getProductById(query.id);
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${query.id} not found`);

@@ -92,7 +92,9 @@ export class ProductsController {
     status: 404,
     description: 'Product not found',
   })
-  async getProduct(@Param('id', ParseIntPipe) id: number): Promise<ProductDto> {
+  async getProduct(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ProductDto | null> {
     const query = new GetProductQuery(id);
     return await this.queryBus.execute(query);
   }
