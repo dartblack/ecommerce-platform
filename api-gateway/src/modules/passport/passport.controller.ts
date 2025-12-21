@@ -34,16 +34,7 @@ export class PassportController {
     return {
       success: true,
       message: 'Login successful',
-      data: {
-        user: {
-          id: req.user.id,
-          name: req.user.name,
-          email: req.user.email,
-          role: req.user.role,
-        },
-        token: req.user.token,
-        tokenType: req.user.tokenType || 'Bearer',
-      },
+      data: req.user,
     };
   }
 }

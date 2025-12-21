@@ -2,21 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom, timeout } from 'rxjs';
-
-interface AdminLoginResponse {
-  success: boolean;
-  data?: {
-    user: {
-      id: number;
-      name: string;
-      email: string;
-      role: string;
-    };
-    token: string;
-    token_type: string;
-  };
-  message?: string;
-}
+import { LoginResponseDto } from '../dtos/login-response.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class AuthDelegationService {
@@ -35,7 +22,7 @@ export class AuthDelegationService {
     try {
       const response = await lastValueFrom(
         this.httpService
-          .post<AdminLoginResponse>(
+          .post<LoginResponseDto>(
             this.loginUrl,
             { email, password },
             {
@@ -51,20 +38,8 @@ export class AuthDelegationService {
         return null;
       }
 
-      const { user, token, token_type } = response.data.data;
+      return plainToInstance(LoginResponseDto, response.data);
 
-      /**
-       * Return minimal trusted identity
-       * Token is returned only because you explicitly need it
-       */
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        accessToken: token,
-        tokenType: token_type,
-      };
     } catch (error: any) {
       const status = error?.response?.status;
 

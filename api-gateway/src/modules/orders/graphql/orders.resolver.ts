@@ -4,7 +4,6 @@ import {
   Mutation,
   Args,
   Int,
-  Context,
   ResolveField,
   Parent,
 } from '@nestjs/graphql';
@@ -19,6 +18,8 @@ import { CreateOrderCommand } from '../commands/create-order.command';
 import { CancelOrderCommand } from '../commands/cancel-order.command';
 import { ConfirmPaymentCommand } from '../commands/confirm-payment.command';
 import { CreateOrderDto } from '../dtos/create-order.dto';
+import { CurrentUser } from 'src/modules/passport/decorators/current-user.decorator';
+import { JwtUserDto } from '../../passport/dtos/jwt-user.dto';
 
 @Resolver(() => Order)
 export class OrdersResolver {
@@ -30,9 +31,9 @@ export class OrdersResolver {
   @Query(() => OrderListResponse, { name: 'orders' })
   async getOrders(
     @Args('input', { nullable: true }) input?: GetOrdersInput,
-    @Context() context?: any,
+    @CurrentUser() user?: JwtUserDto,
   ): Promise<OrderListResponse> {
-    const userId: number = context?.req?.user?.id;
+    const userId: number = user?.sub || 0;
     const limit = input?.limit || 20;
     const pageNum = input?.page || 1;
     const query = new GetOrdersQuery(userId, input?.status, pageNum, limit);
@@ -58,9 +59,9 @@ export class OrdersResolver {
   @Query(() => Order, { name: 'order', nullable: true })
   async getOrder(
     @Args('id', { type: () => Int }) id: number,
-    @Context() context?: any,
+    @CurrentUser() user?: JwtUserDto,
   ): Promise<Order | null> {
-    const userId: number = context?.req?.user?.id;
+    const userId: number = user?.sub || 0;
     const query = new GetOrderQuery(id, userId);
     return await this.queryBus.execute(query);
   }
@@ -68,9 +69,9 @@ export class OrdersResolver {
   @Mutation(() => Order, { name: 'createOrder' })
   async createOrder(
     @Args('input') input: CreateOrderInput,
-    @Context() context?: any,
+    @CurrentUser() user?: JwtUserDto,
   ): Promise<Order> {
-    const userId: number = context?.req?.user?.id || null;
+    const userId: number = user?.sub || 0;
 
     const createOrderDto: CreateOrderDto = {
       orderItems: input.orderItems,
@@ -98,9 +99,9 @@ export class OrdersResolver {
   async cancelOrder(
     @Args('id', { type: () => Int }) id: number,
     @Args('reason', { nullable: true }) reason?: string,
-    @Context() context?: any,
+    @CurrentUser() user?: JwtUserDto,
   ): Promise<Order> {
-    const userId: number = context?.req?.user?.id;
+    const userId: number = user?.sub || 0;
     const command = new CancelOrderCommand(id, userId, reason);
     return await this.commandBus.execute(command);
   }
@@ -108,9 +109,9 @@ export class OrdersResolver {
   @Mutation(() => Order, { name: 'confirmPayment' })
   async confirmPayment(
     @Args('id', { type: () => Int }) id: number,
-    @Context() context?: any,
+    @CurrentUser() user?: JwtUserDto,
   ): Promise<Order> {
-    const userId: number = context?.req?.user?.id;
+    const userId: number = user?.sub || 0;
     const command = new ConfirmPaymentCommand(id, userId);
     return await this.commandBus.execute(command);
   }

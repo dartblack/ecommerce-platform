@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Query,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -22,6 +13,9 @@ import { GetOrderQuery } from './queries/get-order.query';
 import { GetOrdersQuery } from './queries/get-orders.query';
 import { OrderStatus } from '../../database/entities/order.entity';
 import { CreateOrderDto } from './dtos/create-order.dto';
+import { CurrentUser } from '../passport/decorators/current-user.decorator';
+import { JwtUserDto } from '../passport/dtos/jwt-user.dto';
+import { GetOrdersDto } from './dtos/get-orders.dto';
 
 @ApiTags('Orders')
 @Controller('orders')
@@ -36,11 +30,11 @@ export class OrdersController {
   @ApiOperation({ summary: 'Create a new order' })
   @ApiResponse({ status: 201, description: 'Order created successfully' })
   async createOrder(
-    @Request() req: any,
+    @CurrentUser() user: JwtUserDto,
     @Body() createOrderDto: CreateOrderDto,
   ) {
     const command = new CreateOrderCommand(
-      req.user?.id || null,
+      user.sub,
       createOrderDto.orderItems,
       createOrderDto.shippingAddress,
       createOrderDto.paymentDetails,
@@ -55,20 +49,23 @@ export class OrdersController {
   @ApiOperation({ summary: 'Get orders list' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   async getOrders(
-    @Request() req: any,
-    @Query('status') status?: OrderStatus,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @CurrentUser() user: JwtUserDto,
+    @Query() search: GetOrdersDto,
   ) {
-    const query = new GetOrdersQuery(req.user?.id, status, page, limit);
+    const query = new GetOrdersQuery(
+      user.sub,
+      search.status,
+      search.page,
+      search.limit,
+    );
     return this.queryBus.execute(query);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID' })
   @ApiResponse({ status: 200, description: 'Order retrieved successfully' })
-  async getOrder(@Request() req: any, @Param('id') id: string) {
-    const query = new GetOrderQuery(parseInt(id, 10), req.user?.id);
+  async getOrder(@CurrentUser() user: JwtUserDto, @Param('id') id: string) {
+    const query = new GetOrderQuery(parseInt(id, 10), user.sub);
     return this.queryBus.execute(query);
   }
 
@@ -76,13 +73,13 @@ export class OrdersController {
   @ApiOperation({ summary: 'Cancel order' })
   @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
   async cancelOrder(
-    @Request() req: any,
+    @CurrentUser() user: JwtUserDto,
     @Param('id') id: string,
     @Body() cancelDto: { reason?: string },
   ) {
     const command = new CancelOrderCommand(
       parseInt(id, 10),
-      req.user?.id,
+      user.sub,
       cancelDto.reason,
     );
     return this.commandBus.execute(command);
@@ -91,8 +88,11 @@ export class OrdersController {
   @Post(':id/confirm-payment')
   @ApiOperation({ summary: 'Confirm payment for order (mock)' })
   @ApiResponse({ status: 200, description: 'Payment confirmed successfully' })
-  async confirmPayment(@Request() req: any, @Param('id') id: string) {
-    const command = new ConfirmPaymentCommand(parseInt(id, 10), req.user?.id);
+  async confirmPayment(
+    @CurrentUser() user: JwtUserDto,
+    @Param('id') id: string,
+  ) {
+    const command = new ConfirmPaymentCommand(parseInt(id, 10), user.sub);
     return this.commandBus.execute(command);
   }
 }

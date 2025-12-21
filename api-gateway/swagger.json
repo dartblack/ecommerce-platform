@@ -371,10 +371,19 @@
         "parameters": [
           {
             "name": "status",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "pending",
+                "processing",
+                "shipped",
+                "delivered",
+                "cancelled",
+                "refunded",
+                "success"
+              ]
             }
           },
           {
@@ -382,6 +391,8 @@
             "required": true,
             "in": "query",
             "schema": {
+              "minimum": 1,
+              "example": 1,
               "type": "number"
             }
           },
@@ -390,6 +401,8 @@
             "required": true,
             "in": "query",
             "schema": {
+              "minimum": 1,
+              "example": 20,
               "type": "number"
             }
           }
@@ -615,6 +628,26 @@
           "role"
         ]
       },
+      "LoginResponseDataDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserDto"
+          },
+          "token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "example": "Bearer"
+          }
+        },
+        "required": [
+          "user",
+          "token",
+          "token_type"
+        ]
+      },
       "LoginResponseDto": {
         "type": "object",
         "properties": {
@@ -627,23 +660,7 @@
             "example": "Login successful"
           },
           "data": {
-            "type": "object",
-            "properties": {
-              "user": {
-                "$ref": "#/components/schemas/UserDto"
-              },
-              "token": {
-                "type": "string"
-              },
-              "tokenType": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "user",
-              "token",
-              "tokenType"
-            ]
+            "$ref": "#/components/schemas/LoginResponseDataDto"
           }
         },
         "required": [

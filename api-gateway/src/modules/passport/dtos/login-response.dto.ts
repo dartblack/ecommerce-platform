@@ -14,6 +14,15 @@ export class UserDto {
   role: string;
 }
 
+export class LoginResponseDataDto {
+  @ApiProperty({ type: UserDto })
+  user: UserDto;
+  @ApiProperty()
+  token: string;
+  @ApiProperty({ example: 'Bearer' })
+  tokenType: string;
+}
+
 export class LoginResponseDto {
   @ApiProperty({ example: true })
   success: boolean;
@@ -21,10 +30,6 @@ export class LoginResponseDto {
   @ApiProperty({ example: 'Login successful' })
   message: string;
 
-  @ApiProperty()
-  data: {
-    user: UserDto;
-    token: string;
-    tokenType: string;
-  };
+  @ApiProperty({ type: LoginResponseDataDto })
+  data: LoginResponseDataDto;
 }

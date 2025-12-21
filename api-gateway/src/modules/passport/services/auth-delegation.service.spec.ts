@@ -14,6 +14,7 @@ describe('AuthDelegationService', () => {
   const mockSuccessResponse: AxiosResponse = {
     data: {
       success: true,
+      message: 'Login successful',
       data: {
         user: {
           id: 1,
@@ -22,7 +23,7 @@ describe('AuthDelegationService', () => {
           role: 'admin',
         },
         token: 'jwt-token-123',
-        token_type: 'Bearer',
+        tokenType: 'Bearer',
       },
     },
     status: 200,
@@ -86,12 +87,18 @@ describe('AuthDelegationService', () => {
       );
 
       expect(result).toEqual({
-        id: 1,
-        name: 'John Doe',
-        email: 'john@example.com',
-        role: 'admin',
-        accessToken: 'jwt-token-123',
-        tokenType: 'Bearer',
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: {
+            id: 1,
+            name: 'John Doe',
+            email: 'john@example.com',
+            role: 'admin',
+          },
+          token: 'jwt-token-123',
+          tokenType: 'Bearer',
+        },
       });
 
       expect(httpService.post).toHaveBeenCalledWith(
