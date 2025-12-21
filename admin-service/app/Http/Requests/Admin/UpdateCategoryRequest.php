@@ -23,7 +23,11 @@ class UpdateCategoryRequest extends FormRequest
      */
     public function rules(): array
     {
-        $categoryId = $this->route('category')->id ?? null;
+        $categoryId = $this->route('category');
+        
+        if (is_object($categoryId)) {
+            $categoryId = $categoryId->id;
+        }
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],

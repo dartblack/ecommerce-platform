@@ -50,12 +50,12 @@ class CategoryController extends Controller
         }
 
         $parentId = $request->input('parent_id');
-        if ($parentId !== null && $parentId !== '') {
-            $query->where('parent_id', $parentId);
-        } else {
+        if ($parentId === 'null') {
             $query->whereNull('parent_id');
+        } elseif ($parentId !== null && $parentId !== '') {
+            $query->where('parent_id', $parentId);
         }
-
+        
         $isActive = $request->input('is_active');
         if ($isActive !== null && $isActive !== '') {
             $query->where('is_active', $isActive === 'true' || $isActive === '1');

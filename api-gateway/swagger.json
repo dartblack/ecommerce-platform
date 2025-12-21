@@ -490,7 +490,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Order"
                 }
               }
             }
@@ -1169,6 +1169,250 @@
           "orderItems",
           "shippingAddress",
           "paymentDetails"
+        ]
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "orderNumber": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "shipped",
+              "delivered",
+              "cancelled",
+              "refunded",
+              "success"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "failed",
+              "refunded"
+            ]
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "subtotal": {
+            "type": "number"
+          },
+          "tax": {
+            "type": "number"
+          },
+          "shipping": {
+            "type": "number"
+          },
+          "discount": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "shippingFirstName": {
+            "type": "string"
+          },
+          "shippingLastName": {
+            "type": "string"
+          },
+          "shippingEmail": {
+            "type": "string"
+          },
+          "shippingPhone": {
+            "type": "string"
+          },
+          "shippingAddressLine1": {
+            "type": "string"
+          },
+          "shippingAddressLine2": {
+            "type": "string"
+          },
+          "shippingCity": {
+            "type": "string"
+          },
+          "shippingState": {
+            "type": "string"
+          },
+          "shippingPostalCode": {
+            "type": "string"
+          },
+          "shippingCountry": {
+            "type": "string"
+          },
+          "billingFirstName": {
+            "type": "string"
+          },
+          "billingLastName": {
+            "type": "string"
+          },
+          "billingEmail": {
+            "type": "string"
+          },
+          "billingPhone": {
+            "type": "string"
+          },
+          "billingAddressLine1": {
+            "type": "string"
+          },
+          "billingAddressLine2": {
+            "type": "string"
+          },
+          "billingCity": {
+            "type": "string"
+          },
+          "billingState": {
+            "type": "string"
+          },
+          "billingPostalCode": {
+            "type": "string"
+          },
+          "billingCountry": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "trackingNumber": {
+            "type": "string"
+          },
+          "shippedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deliveredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "orderItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItem"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "orderNumber",
+          "userId",
+          "status",
+          "paymentStatus",
+          "paymentMethod",
+          "subtotal",
+          "tax",
+          "shipping",
+          "discount",
+          "total",
+          "shippingFirstName",
+          "shippingLastName",
+          "shippingEmail",
+          "shippingPhone",
+          "shippingAddressLine1",
+          "shippingAddressLine2",
+          "shippingCity",
+          "shippingState",
+          "shippingPostalCode",
+          "shippingCountry",
+          "billingFirstName",
+          "billingLastName",
+          "billingEmail",
+          "billingPhone",
+          "billingAddressLine1",
+          "billingAddressLine2",
+          "billingCity",
+          "billingState",
+          "billingPostalCode",
+          "billingCountry",
+          "notes",
+          "trackingNumber",
+          "shippedAt",
+          "deliveredAt",
+          "cancelledAt",
+          "createdAt",
+          "updatedAt",
+          "deletedAt",
+          "orderItems"
+        ]
+      },
+      "OrderItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "orderId": {
+            "type": "number"
+          },
+          "productId": {
+            "type": "number"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "productSku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          },
+          "subtotal": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "order": {
+            "$ref": "#/components/schemas/Order"
+          }
+        },
+        "required": [
+          "id",
+          "orderId",
+          "productId",
+          "productName",
+          "productSku",
+          "quantity",
+          "price",
+          "subtotal",
+          "createdAt",
+          "updatedAt",
+          "order"
         ]
       },
       "UpdateOrderStatusDto": {

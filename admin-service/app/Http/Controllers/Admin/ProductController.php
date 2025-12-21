@@ -56,7 +56,8 @@ class ProductController extends Controller
         return Inertia::render('Admin/Products/Index', [
             'products' => $products,
             'categories' => Category::withoutTrashed()
-                ->select('id', 'name')
+                ->select('id', 'name', 'parent_id')
+                ->with('parent:id,name')
                 ->orderBy('name')
                 ->get(),
             'filters' => $filters,
