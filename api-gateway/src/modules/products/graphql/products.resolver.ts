@@ -69,7 +69,7 @@ export class ProductsResolver {
   @Query(() => Product, { name: 'product', nullable: true })
   async getProduct(
     @Args('id', { type: () => Int }) id: number,
-  ): Promise<Product> {
+  ): Promise<Product | null> {
     const query = new GetProductQuery(id);
     return await this.queryBus.execute(query);
   }
