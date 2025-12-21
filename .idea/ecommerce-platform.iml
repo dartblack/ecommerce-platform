@@ -8,6 +8,9 @@
       <sourceFolder url="file://$MODULE_DIR$/admin-service/tests" isTestSource="true" packagePrefix="Tests\" />
       <sourceFolder url="file://$MODULE_DIR$/admin-service/tests/Feature" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/admin-service/tests/Unit" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/admin-service/public/build" />
+      <excludeFolder url="file://$MODULE_DIR$/admin-service/storage/app/public/products" />
+      <excludeFolder url="file://$MODULE_DIR$/admin-service/vendor" />
       <excludeFolder url="file://$MODULE_DIR$/admin-service/vendor/bacon/bacon-qr-code" />
       <excludeFolder url="file://$MODULE_DIR$/admin-service/vendor/barryvdh/laravel-dompdf" />
       <excludeFolder url="file://$MODULE_DIR$/admin-service/vendor/brick/math" />
