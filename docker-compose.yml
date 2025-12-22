@@ -43,6 +43,14 @@ services:
     depends_on:
       - postgresdb
       - redis
+      - elasticsearch
+      - mailhog
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     environment:
       - APP_NAME=Laravel
       - APP_ENV=local
@@ -76,17 +84,14 @@ services:
       context: ./admin-service
       dockerfile: Dockerfile
     container_name: ecommerce-admin-queue-worker
+    restart: unless-stopped
     volumes:
       - ./admin-service:/var/www/html
       - ./admin-service/vendor:/var/www/html/vendor
+      - ./admin-service/node_modules:/var/www/html/node_modules
     networks:
       - ecommerce-network
-    restart: unless-stopped
-    depends_on:
-      - postgresdb
-      - redis
-      - admin-service
-    entrypoint: ["/usr/local/bin/docker-entrypoint-queue.sh"]
+    entrypoint: [ "docker-entrypoint-queue.sh" ]
     environment:
       - APP_NAME=Laravel
       - APP_ENV=local
@@ -114,7 +119,15 @@ services:
       - MAIL_FROM_ADDRESS=noreply@example.com
       - MAIL_FROM_NAME=noreply
       - SERVICE_API_KEY=P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97
-    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+      - RUN_MIGRATIONS=false
+    command: [ "php", "artisan", "queue:work", "redis", "--sleep=3", "--tries=3", "--max-time=3600" ]
+    healthcheck:
+      disable: true
+    depends_on:
+      admin-service:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   api-gateway:
     build:
@@ -133,6 +146,7 @@ services:
       - postgresdb
       - redis
       - mailhog
+      - elasticsearch
     environment:
       - NODE_ENV=development
       - PORT=3000
@@ -150,8 +164,8 @@ services:
       - MAIL_FROM_NAME=Ecommerce Platform
       - API_KEY_SECRET=P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97
       - ADMIN_SERVICE_API_KEY=P2lleONRjm0OZphGcZq543mSNaewCFPstto9lY9wI86UJKIU97
-    entrypoint: ["sh", "/app/docker-entrypoint.sh"]
-    command: ["npm", "run", "start:dev"]
+    entrypoint: [ "sh", "/app/docker-entrypoint.sh" ]
+    command: [ "npm", "run", "start:dev" ]
 
   nginx:
     image: nginx:alpine
@@ -202,7 +216,7 @@ services:
       - xpack.security.enabled=false
     networks:
       - ecommerce-network
-  
+
   mailhog:
     image: mailhog/mailhog:latest
     container_name: ecommerce-mailhog

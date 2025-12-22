@@ -637,7 +637,7 @@
           "token": {
             "type": "string"
           },
-          "token_type": {
+          "tokenType": {
             "type": "string",
             "example": "Bearer"
           }
@@ -645,7 +645,7 @@
         "required": [
           "user",
           "token",
-          "token_type"
+          "tokenType"
         ]
       },
       "LoginResponseDto": {
