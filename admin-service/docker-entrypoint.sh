@@ -28,10 +28,10 @@ if [ ! -f /var/www/html/.env ]; then
     echo "Creating .env file..."
     cp /var/www/html/.env.example /var/www/html/.env
     echo "Copied .env.example to .env"
-    chown www-data:www-data /var/www/html/.env 2>/dev/null || true
-else
-    echo ".env file already exists"
 fi
+# Ensure .env file has proper ownership and permissions for www-data to write
+chown www-data:www-data /var/www/html/.env 2>/dev/null || true
+chmod 664 /var/www/html/.env 2>/dev/null || true
 
 
 echo "Waiting for database connection..."
@@ -64,14 +64,48 @@ done
 echo "Elasticsearch is ready!"
 
 
-echo "Installing Composer dependencies..."
-composer install --no-interaction --prefer-dist --optimize-autoloader
 chown -R www-data:www-data /var/www/html/vendor 2>/dev/null || true
 chown -R www-data:www-data /var/www/html/public/build 2>/dev/null || true
+chown -R www-data:www-data /var/www/html/node_modules 2>/dev/null || true
+
+# Ensure package files have proper permissions for npm to write
+if [ -f /var/www/html/package.json ]; then
+    chown www-data:www-data /var/www/html/package.json 2>/dev/null || true
+    chmod 664 /var/www/html/package.json 2>/dev/null || true
+fi
+if [ -f /var/www/html/package-lock.json ]; then
+    chown www-data:www-data /var/www/html/package-lock.json 2>/dev/null || true
+    chmod 664 /var/www/html/package-lock.json 2>/dev/null || true
+fi
+# Ensure composer files have proper permissions
+if [ -f /var/www/html/composer.json ]; then
+    chown www-data:www-data /var/www/html/composer.json 2>/dev/null || true
+    chmod 664 /var/www/html/composer.json 2>/dev/null || true
+fi
+if [ -f /var/www/html/composer.lock ]; then
+    chown www-data:www-data /var/www/html/composer.lock 2>/dev/null || true
+    chmod 664 /var/www/html/composer.lock 2>/dev/null || true
+fi
+# Ensure the root directory is writable for npm/composer to create/update lock files
+chown www-data:www-data /var/www/html 2>/dev/null || true
+chmod 775 /var/www/html 2>/dev/null || true
+
+echo "Running Composer setup script..."
+# Run setup script as www-data user
+su-exec www-data composer run-script setup --no-interaction || {
+    echo "Warning: Setup script failed, continuing with manual setup..."
+    # Fallback to manual setup if script fails
+    composer install --no-interaction --prefer-dist --optimize-autoloader
+    chown -R www-data:www-data /var/www/html/vendor 2>/dev/null || true
+}
 
 # Create storage symlink if it doesn't exist
 echo "Creating storage symlink..."
-php artisan storage:link --force 2>/dev/null || true
+if [ ! -L /var/www/html/public/storage ]; then
+    su-exec www-data php artisan storage:link 2>/dev/null || true
+else
+    echo "Storage symlink already exists"
+fi
 
 # Ensure public/storage has correct permissions
 if [ -L /var/www/html/public/storage ]; then
